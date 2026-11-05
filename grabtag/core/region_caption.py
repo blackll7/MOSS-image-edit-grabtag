@@ -393,6 +393,23 @@ def row_runs(row, x0, x1, er):
     return out
 
 
+def _write_tags(meta, out_dir, quiet=False):
+    """把 regions.json 里的 ref_tag 导成 tags.json（参考侧）。plan 与 build 共用，幂等。"""
+    tags = [{"name": r["id"], "ref_tag": r["ref_tag"], "crop": r.get("crop", ""),
+             "color": r.get("color", ""), "area": r.get("own_px", 0)}
+            for r in meta.get("regions", []) if (r.get("ref_tag") or "").strip()]
+    if not tags:
+        return 0
+    tp = os.path.join(out_dir, "tags.json")
+    with open(tp, "w", encoding="utf-8") as fh:
+        json.dump({"ref": meta.get("ref", ""), "size": meta.get("size"),
+                   "summary": meta.get("summary", ""), "tags": tags},
+                  fh, ensure_ascii=False, indent=2)
+    if not quiet:
+        print("[tags] 参考侧 tag : %s（%d 件）" % (tp, len(tags)))
+    return len(tags)
+
+
 # ---------------------------------------------------------------- plan
 
 # ---------------- caption 自检（模板见 MANUAL-GrabTag §6.4）----------------
@@ -885,16 +902,8 @@ def cmd_plan(a):
         json.dump(meta, fh, ensure_ascii=False, indent=2)
     if print_lint(regions, strict=getattr(a, "lint_strict", False)):
         return 2
-    tags = [{"name": r["id"], "ref_tag": r["ref_tag"], "crop": r["crop"],
-              "color": r["color"], "area": r.get("own_px", 0)}
-            for r in meta["regions"] if r.get("ref_tag")]
-    if tags and a.mode != "layout":
-        tp = os.path.join(a.out, "tags.json")
-        with open(tp, "w", encoding="utf-8") as fh:
-            json.dump({"ref": meta["ref"], "size": meta.get("size"),
-                       "summary": meta.get("summary", ""), "tags": tags},
-                      fh, ensure_ascii=False, indent=2)
-        print("[plan] 参考侧 tag : %s（%d 件）" % (tp, len(tags)))
+    if a.mode != "layout":
+        _write_tags(meta, a.out)
 
     print("[plan] 参考图 %dx%d → 画布 %dx%d，%d 区，fit=%s，切法=%s"
           % (W0, H0, W, H, len(regions), a.fit, split))
@@ -962,6 +971,7 @@ def cmd_build(a):
         with open(out, "r", encoding="utf-8") as fh:
             lay = json.load(fh)
         print("[build] layout 就绪：%s（%d items）" % (out, len(lay.get("items", []))))
+        _write_tags(meta, a.dir)
 
         # ---- 覆盖体检回写：把 pri>=5 且 kept<90% 的区标进 layout.audit.json ----
         by_id = {r["id"]: r for r in meta["regions"]}
