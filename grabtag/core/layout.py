@@ -3,7 +3,7 @@
 """moss_layout.py —— 从分区色图导出 MOSS Layout JSON + 方位冲突 lint。
 
 借鉴 ukr8b3g-cmyk/MossImage-BBOX-Prompter 的 prompt_builder.py：
-  * layout schema: {"summary":{"caption":...},"items":[{label,caption,text?,bbox}],
+  * layout schema: {"summary":{"text":...},"items":[{label,paint_prompt,bbox}],
                     "bbox_coord_space":"abs_centralized","bbox_format":"yxyx"}
   * pixel_bbox() 用 floor/ceil，保证框不退化成零面积
   * position_hint() / position_conflict()：方位词自动生成 + 与手写方位词比对
@@ -114,7 +114,7 @@ def parse_item(txt):
     parts = [p.strip() for p in txt.split("|")]
     if len(parts) < 3:
         raise ValueError(f"--item 需要 颜色|标签|描述：{txt!r}")
-    colour, label, caption = parts[0], parts[1].lower(), parts[2]
+    colour, label, caption = parts[0], parts[1].lower(), parts[2]   # 第三段 = paint_prompt
     if label not in LABELS:
         raise ValueError(f"标签只能是 {LABELS}：{label!r}")
     return hex2rgb(colour), label, caption
@@ -124,7 +124,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--colormap", required=True)
     ap.add_argument("--out", default="", help="输出 layout json 路径")
-    ap.add_argument("--summary", default="", help="整图 summary caption")
+    ap.add_argument("--summary", default="", help="整图 summary（全局一句话）")
     ap.add_argument("--item", action="append", default=[],
                     help="颜色|标签|描述，可重复（标签 character/object/text）")
     ap.add_argument("--prompt-file", default="", help="只做 lint：读主提示词")
@@ -170,20 +170,20 @@ def main():
         label, caption = given.get(rgb, ("object", ""))
 
         if not caption:
-            warnings.append(f"{rgb2hex(rgb)}: 没有给 caption（--item 里补）")
+            warnings.append(f"{rgb2hex(rgb)}: 没有给 paint_prompt（--item 第三段）")
         if bbox[0] == bbox[2] or bbox[1] == bbox[3]:
             warnings.append(f"{rgb2hex(rgb)}: 框在导出精度下退化成零面积")
         if x0 <= 0 or y0 <= 0 or x1 >= W or y1 >= H:
             warnings.append(f"{rgb2hex(rgb)}: 框贴边或越界（{W}x{H}）")
 
-        items.append({"label": label, "caption": caption, "bbox": bbox,
+        items.append({"label": label, "paint_prompt": caption, "bbox": bbox,
                       "_debug": {"colour": rgb2hex(rgb), "area": round(frac, 4),
                                  "hint": hint, "slot": slot, "slot_dist": round(dist, 1)}})
         if not args.quiet:
             print(f"[layout] {rgb2hex(rgb)}  area={frac*100:5.1f}%  slot≈{slot}(Δ{dist:.0f})  "
                   f"{label:9s}  {hint:20s} bbox={bbox}")
 
-    layout = {"summary": {"caption": args.summary},
+    layout = {"summary": {"text": args.summary},
               "items": [{k: v for k, v in it.items() if k != "_debug"} for it in items],
               "bbox_coord_space": "abs_centralized", "bbox_format": "yxyx"}
     text = json.dumps(layout, ensure_ascii=args.pretty is False, indent=2 if args.pretty else None,

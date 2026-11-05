@@ -4,7 +4,7 @@
 
 两段式：机械部分交给脚本，判断部分交给看图的一方（人或 VLM）。
 
-  plan  切区 → crops/ + montage.png + cm.png（色图）+ regions.json（caption 留空）
+  plan  切区 → crops/ + montage.png + cm.png（色图）+ regions.json（paint_prompt 留空）
         把 montage.png 交给看图的一方，把每段的外观描述填进 regions.json 的
         caption（只写可见外观：材质/颜色/图案/饰物/廓形，≤25 词，不写身份、
         姿势、背景、镜头词）。
@@ -38,6 +38,7 @@
 import argparse
 import json
 import os
+import re
 import subprocess
 import sys
 import time
@@ -394,6 +395,96 @@ def row_runs(row, x0, x1, er):
 
 # ---------------------------------------------------------------- plan
 
+# ---------------- caption 自检（模板见 MANUAL-GrabTag §6.4）----------------
+_LINT_BAN = {
+    "girl": "身份词", "woman": "身份词", "lady": "身份词", "boy": "身份词",
+    "standing": "姿势词", "sitting": "姿势词", "lying": "姿势词", "kneeling": "姿势词",
+    "pose": "姿势词", "action": "姿势词",
+    "close-up": "镜头词", "closeup": "镜头词", "camera": "镜头词", "shot": "镜头词",
+    "background": "背景词", "backdrop": "背景词", "stage": "背景词",
+    "lighting": "光照词", "backlight": "光照词", "shadow": "光照词",
+    "beautiful": "质量词", "ornate": "质量词", "intricate": "质量词",
+    "detailed": "质量词", "masterpiece": "质量词", "8k": "质量词", "4k": "质量词",
+    "realistic": "质量词", "photorealistic": "质量词", "anime": "画风词",
+    "illustration": "画风词", "hand-drawn": "画风词",
+}
+_LINT_ANCHOR = (" on ", " at ", " across ", " along ", " from ", " over ", " around ",
+                " behind ", " above ", " below ", " beneath ", " between ",
+                " hanging", " attached", " tied", " wrapped", " draped",
+                " printed", " embroidered", " set with", " centred", " centered")
+_LINT_COLOR = (" black", " white", " red", " crimson", " blue", " navy", " green", " teal",
+               " gold", " golden", " silver", " purple", " violet", " lilac", " pink",
+               " orange", " yellow", " brown", " cream", " ivory", " bronze", " copper",
+               " jade", " emerald", " turquoise", " grey", " gray", " beige")
+
+
+
+def _pick(d, *keys):
+    """兼容旧字段名：按顺序取第一个非空值。"""
+    for k in keys:
+        v = d.get(k) if isinstance(d, dict) else None
+        if v:
+            return v
+    return ""
+
+def lint_caption(text):
+    """返回 (level, 原因列表)；level: ok / warn / fail"""
+    t = (text or "").strip()
+    if not t:
+        return "warn", ["paint_prompt 为空"]
+    low = " " + t.lower() + " "
+    words = len(re.findall(r"[A-Za-z0-9\'-]+", t))
+    reasons, level = [], "ok"
+
+    if words > 18:
+        reasons.append("太长 %d 词（≤18）" % words)
+        level = "fail"
+    elif words > 14:
+        reasons.append("偏长 %d 词（建议 ≤14）" % words)
+        level = "warn"
+
+    hits = sorted({v for k, v in _LINT_BAN.items() if k in low})
+    if hits:
+        reasons.append("含不该写的词类别：" + "/".join(hits))
+        level = "fail"
+
+    if not any(a in low for a in _LINT_ANCHOR):
+        reasons.append("缺落点（写清长在哪块身体/哪块布上）")
+        level = "fail"
+
+    if not any(c in low for c in _LINT_COLOR):
+        reasons.append("没写颜色")
+        if level == "ok":
+            level = "warn"
+
+    if low.count(" and ") >= 2:
+        reasons.append("含 %d 个 and —— 可能塞了多件东西（一区一物）" % low.count(" and "))
+        if level == "ok":
+            level = "warn"
+
+    return level, reasons
+
+
+def print_lint(regions, strict=False):
+    rows = [(r.get("id", "?"), r.get("paint_prompt", "")) for r in regions]
+    if not rows:
+        return False
+    bad = 0
+    print("[lint] paint_prompt 自检（模板：≤18 词 / 只写一件 / 必带落点 / 带颜色）")
+    for name, cap in rows:
+        level, reasons = lint_caption(cap)
+        if level == "ok":
+            continue
+        bad += level == "fail"
+        mark = "FAIL" if level == "fail" else "warn"
+        print("  %-10s %s  %s" % (name, mark, "；".join(reasons)))
+    if bad == 0:
+        print("  -> 全部通过")
+    else:
+        print("  -> %d 条不达标，改完再 build" % bad)
+    return strict and bad > 0
+
+
 def cmd_plan(a):
     ref = Image.open(a.ref).convert("RGB")
     W0, H0 = ref.size
@@ -657,12 +748,23 @@ def cmd_plan(a):
                      round(x1f if x1f is not None else 1.0, 4), round(y1f, 4)],
             "span": [int(span[0]), int(span[1])],
             "crop": os.path.relpath(crop_path, a.out),
-            "caption": it.get("caption", "").strip(),
-            "tag": (it.get("tag") or "").strip(),
+            "paint_prompt": _pick(it, "paint_prompt", "caption").strip(),
+            "ref_tag": _pick(it, "ref_tag", "tag").strip(),
             "priority": int(it.get("priority", 0)),
             "masker": g.get("_how", ""),
             "own_px": own_n,
         })
+
+    # ---- 字段错位提示：tag（参考侧）与 caption（生成侧）不通用 ----
+    _no_tag = [r["id"] for r in regions if not r.get("ref_tag") and r.get("paint_prompt")]
+    _no_cap = [r["id"] for r in regions if r.get("ref_tag") and not r.get("paint_prompt")]
+    if a.mode == "ref" and _no_tag:
+        print("[plan] 提示：%d 个区只有 paint_prompt 没有 ref_tag(%s) —— 参考侧要的是 ref_tag（这块是什么），"
+              "paint_prompt 是生成侧写法（必带落点），两者不通用"
+              % (len(_no_tag), ", ".join(_no_tag[:6])))
+    if a.mode == "layout" and _no_cap:
+        print("[plan] 提示：%d 个区只有 ref_tag 没有 paint_prompt(%s) —— 生成侧要的是 paint_prompt（这块画什么 + 落点）"
+              % (len(_no_cap), ", ".join(_no_cap[:6])))
 
     cm_path = os.path.join(a.out, "cm.png")
     if a.mode == "ref":
@@ -781,9 +883,11 @@ def cmd_plan(a):
     }
     with open(os.path.join(a.out, "regions.json"), "w", encoding="utf-8") as fh:
         json.dump(meta, fh, ensure_ascii=False, indent=2)
-    tags = [{"name": r["id"], "tag": r["tag"], "crop": r["crop"],
+    if print_lint(regions, strict=getattr(a, "lint_strict", False)):
+        return 2
+    tags = [{"name": r["id"], "ref_tag": r["ref_tag"], "crop": r["crop"],
               "color": r["color"], "area": r.get("own_px", 0)}
-            for r in meta["regions"] if r.get("tag")]
+            for r in meta["regions"] if r.get("ref_tag")]
     if tags and a.mode != "layout":
         tp = os.path.join(a.out, "tags.json")
         with open(tp, "w", encoding="utf-8") as fh:
@@ -831,9 +935,9 @@ def cmd_build(a):
     meta_path = os.path.join(a.dir, "regions.json")
     with open(meta_path, "r", encoding="utf-8") as fh:
         meta = json.load(fh)
-    missing = [r["id"] for r in meta["regions"] if not r.get("caption", "").strip()]
+    missing = [r["id"] for r in meta["regions"] if not r.get("paint_prompt", "").strip()]
     if missing:
-        print("[build] 这些区还没有 caption：%s" % ", ".join(missing))
+        print("[build] 这些区还没有 paint_prompt：%s" % ", ".join(missing))
         return 2
 
     out = a.layout or os.path.join(a.dir, "layout.json")
@@ -847,7 +951,7 @@ def cmd_build(a):
     if meta.get("summary"):
         cmd += ["--summary", meta["summary"]]
     for r in meta["regions"]:
-        cmd += ["--item", "%s|object|%s" % (r["color"], r["caption"].strip())]
+        cmd += ["--item", "%s|object|%s" % (r["color"], r["paint_prompt"].strip())]
     if a.quiet:
         cmd.append("--quiet")
     if getattr(a, "sort", "area") and a.sort != "area":
@@ -863,10 +967,10 @@ def cmd_build(a):
         by_id = {r["id"]: r for r in meta["regions"]}
         warn = []
         for it in lay.get("items", []):
-            cap = (it.get("caption") or "").strip()
+            cap = _pick(it, "paint_prompt", "caption").strip()
             hit = None
             for r in meta["regions"]:
-                if cap and cap == (r.get("caption") or "").strip():
+                if cap and cap == (r.get("paint_prompt") or "").strip():
                     hit = r
                     break
             if not hit:
@@ -917,7 +1021,7 @@ def main():
                    default="big-first",
                    help="spec 画序：小件后画=优先保住（默认 big-first）")
     p1.add_argument("--spec", default="",
-                    help="JSON 清单：[{name,rect:[x0,y0,x1,y1],color?,caption?}]，"
+                    help="JSON 清单：[{name,rect:[x0,y0,x1,y1],color?,ref_tag?,paint_prompt?}]，"
                          "按顺序绘制、后画的覆盖先画的（允许框相互碰撞）")
     p1.add_argument("--size", default="768x1024", help="画布尺寸 WxH（默认 768x1024）")
     p1.add_argument("--max-items", type=int, default=20,
@@ -935,7 +1039,7 @@ def main():
                     help="剔除小于主连通体该比例的碎块（默认 0.02；0=关）")
     p1.add_argument("--split", choices=["auto", "even"], default="auto",
                     help="auto=按体形切（腰/裙摆为界，需 --fit）；even=等分")
-    p1.add_argument("--summary", default="", help="整图 summary caption")
+    p1.add_argument("--summary", default="", help="整图 summary（全局一句话）")
     p1.add_argument("--masker", choices=["grabcut", "sam-auto", "sam-bp", "sam-box", "sam-point"],
                     default="grabcut",
                     help="抠形算法：grabcut(默认) / sam-auto(SAM 逐级兜底) / sam-bp / sam-box / sam-point")
@@ -944,13 +1048,15 @@ def main():
                     help="SAM 跑在哪：auto=有显存就 cuda、否则 cpu（默认）")
     p1.add_argument("--sam-kind", choices=["auto", "sharp", "flat", "line", "box", "point"], default="auto",
                     help="SAM 提示方式；auto≈bp。sharp=尖端小件、flat=平贴纹样、line=带状")
+    p1.add_argument("--lint-strict", action="store_true", dest="lint_strict",
+                    help="paint_prompt 自检有不达标项时以退出码 2 结束")
     p1.add_argument("--for", dest="mode", choices=["ref", "layout", "both"], default="both",
                     help="做什么：ref=只出裁片+tags.json（参考侧）；layout=只出色图+layout（生成侧）；both=都出（默认）")
     p1.set_defaults(func=cmd_plan)
 
     p2 = sub.add_parser("build",
                       help="读填好的 regions.json，导出 layout.json"
-                      " ｜ 通道：只产出结构（label/caption/bbox），本身不改变任何生成结果")
+                      " ｜ 通道：只产出结构（label/paint_prompt/bbox），本身不改变任何生成结果")
     p2.add_argument("--dir", required=True, help="plan 的工作目录")
     p2.add_argument("--layout", default="", help="输出路径（默认 <dir>/layout.json）")
     p2.add_argument("--quiet", action="store_true")
