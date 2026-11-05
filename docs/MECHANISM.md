@@ -5,6 +5,12 @@
 A one-page channel map. Read this before changing anything: most confusion comes
 from mixing up the two channels below.
 
+> **Field names (2026-11-06)**: the reference-side label is `ref_tag` (was `tag`),
+> the generation-side instruction is `paint_prompt` (was `caption`), and the global
+> line is `summary.text` (was `summary.caption`). The code reads the old names and
+> writes only the new ones, so old working directories keep loading.
+
+
 ## Two channels, never interchangeable
 
 | | text channel (prompt) | pixel channel (latent conditioning) |
@@ -45,7 +51,7 @@ model knows the region exists but not what it is.
 
 ### `build` -> `layout.json`
 
-`[{label, caption, bbox}]`, with `bbox` as **yxyx pixels, origin at canvas centre**
+`[{label, paint_prompt, bbox}]`, with `bbox` as **yxyx pixels, origin at canvas centre**
 (e.g. `[-52,-154,133,153]`). Audit data (`kept`, `loss_hi`, warnings) goes to
 `layout.audit.json` — never into `layout.json`, which downstream code may feed to a
 text encoder verbatim.

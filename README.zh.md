@@ -11,6 +11,11 @@
 
 ---
 
+> **字段名（2026-11-06 起）**：参考侧标签叫 `ref_tag`（旧 `tag`），生成侧区域指令叫
+> `paint_prompt`（旧 `caption`），全局一句话叫 `summary.text`（旧 `summary.caption`）。
+> 代码**读旧名、写新名**，旧工作目录可继续加载。
+
+
 ## 两个工具集
 
 | 工具 | 做什么 | 产出 |
@@ -47,7 +52,7 @@ grabtag plan --ref build/demo.png --spec examples/demo_spec.json --out build/reg
 grabtag build --dir build/reg
 ```
 
-`layout.json` 里每项是 `{label, caption, bbox}`，`bbox` 是 **yxyx 像素、以画布中心为原点**（例如 `[-52,-154,133,153]`）。
+`layout.json` 里每项是 `{label, paint_prompt, bbox}`，`bbox` 是 **yxyx 像素、以画布中心为原点**（例如 `[-52,-154,133,153]`）。
 给人看的审计信息（`kept`、`loss_hi`、越界告警）单独写进 `layout.audit.json` —— 不要把它们塞进 `layout.json`，那个文件会被下游当提示词读进去。
 
 

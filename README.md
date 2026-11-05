@@ -17,6 +17,12 @@ OpenCV / SAM optional.
 
 ---
 
+> **Field names (2026-11-06)**: the reference-side label is `ref_tag` (was `tag`),
+> the generation-side instruction is `paint_prompt` (was `caption`), and the global
+> line is `summary.text` (was `summary.caption`). The code reads the old names and
+> writes only the new ones, so old working directories keep loading.
+
+
 ## Quick start
 
 ```bash
@@ -33,7 +39,7 @@ python grabtag.py plan --ref examples/demo.png \
 # 3) export the layout
 python grabtag.py build --dir build/demo
 
-# -> build/demo/layout.json        (label / caption / bbox)
+# -> build/demo/layout.json        (label / paint_prompt / bbox)
 # -> build/demo/layout.audit.json  (adds coverage audit per region)
 ```
 
@@ -42,7 +48,7 @@ python grabtag.py build --dir build/demo
 ```json
 {"items": [
   {"label": "object",
-   "caption": "a pale blue sleeveless bodice with a soft sheen, sitting at the waist",
+   "paint_prompt": "a pale blue sleeveless bodice with a soft sheen, sitting at the waist",
    "bbox": [-52, -154, 133, 154]},
   ...
 ]}
@@ -69,7 +75,7 @@ top-left pixels — the maths lives in `grabtag/core/layout.py::pixel_bbox`.
 | `--bands N` | slice the figure into N horizontal bands (fastest baseline) |
 | `--band a:b --band c:d ...` | explicit fractional bands |
 | `--rect name=x0,y0,x1,y1 ...` | free boxes |
-| `--spec FILE` | a JSON list of `{name, rect, color?, tag?, caption?, seed?, priority?, object?, aliases?, requires?, no_clamp?, sam?}` |
+| `--spec FILE` | a JSON list of `{name, rect, color?, ref_tag?, paint_prompt?, seed?, priority?, object?, aliases?, requires?, no_clamp?, sam?}` |
 
 Optional mask refinement, per region:
 

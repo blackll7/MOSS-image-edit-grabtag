@@ -1,26 +1,46 @@
 [
   {
     "name": "hair",
-    "rect": [0.30, 0.08, 0.70, 0.20],
-    "tag": "dark brown hair framing the face",
-    "caption": "dark brown hair framing the face, drawn with clean lineart"
+    "rect": [
+      0.3,
+      0.08,
+      0.7,
+      0.2
+    ],
+    "ref_tag": "dark brown hair framing the face",
+    "paint_prompt": "dark brown hair framing the face, drawn with clean lineart"
   },
   {
     "name": "bodice",
-    "rect": [0.34, 0.29, 0.66, 0.46],
-    "tag": "pale blue sleeveless bodice",
-    "caption": "a pale blue sleeveless bodice with a soft sheen, sitting at the waist"
+    "rect": [
+      0.34,
+      0.29,
+      0.66,
+      0.46
+    ],
+    "ref_tag": "pale blue sleeveless bodice",
+    "paint_prompt": "a pale blue sleeveless bodice with a soft sheen, sitting at the waist"
   },
   {
     "name": "skirt",
-    "rect": [0.30, 0.45, 0.70, 0.63],
-    "tag": "A-line skirt in deeper blue",
-    "caption": "an A-line skirt in deeper blue that flares out to mid-thigh"
+    "rect": [
+      0.3,
+      0.45,
+      0.7,
+      0.63
+    ],
+    "ref_tag": "A-line skirt in deeper blue",
+    "paint_prompt": "an A-line skirt in deeper blue that flares out to mid-thigh"
   },
   {
     "name": "boots",
-    "rect": [0.36, 0.84, 0.64, 0.94],
-    "tag": "dark boots",
-    "caption": "short dark boots on both feet"
+    "rect": [
+      0.36,
+      0.84,
+      0.64,
+      0.94
+    ],
+    "ref_tag": "dark boots",
+    "paint_prompt": "short dark boots on both feet"
   }
 ]
