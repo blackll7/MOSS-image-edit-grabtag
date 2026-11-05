@@ -130,3 +130,10 @@ large garments.
 ## Licence
 
 MIT — see `LICENSE`. Third-party notes in `NOTICE.md`.
+![regions](docs/images/demo-cm.png)
+
+*A colour map produced by plan on the demo image: every flat colour is one
+region ID. montage.png shows the same regions as numbered crops, ready to be
+captioned one by one.*
+
+
