@@ -55,6 +55,11 @@ top-left pixels — the maths lives in `grabtag/core/layout.py::pixel_bbox`.
 
 ---
 
+
+> **Read before hacking:** [`docs/MECHANISM.md`](docs/MECHANISM.md) — one page on how
+> region tags (text channel) and colour maps (pixel channel) actually reach the model,
+> plus the six symptoms that come from mixing them up.
+
 ## What `plan` does
 
 `plan` has four ways to define regions:

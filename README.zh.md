@@ -50,6 +50,10 @@ grabtag build --dir build/reg
 `layout.json` 里每项是 `{label, caption, bbox}`，`bbox` 是 **yxyx 像素、以画布中心为原点**（例如 `[-52,-154,133,153]`）。
 给人看的审计信息（`kept`、`loss_hi`、越界告警）单独写进 `layout.audit.json` —— 不要把它们塞进 `layout.json`，那个文件会被下游当提示词读进去。
 
+
+> **动手前先读**：[`docs/MECHANISM.md`](docs/MECHANISM.md) —— 一页讲清
+> 「tag 走文字通道、色图走像素通道」以及两者搞反时的六种症状。
+
 ## 为什么要有 `plan`
 
 手写坐标容易把整块布当成一个区域，最后模型把一块布读成一个人。`plan` 负责的是**先把区域画出来给自己看**：
