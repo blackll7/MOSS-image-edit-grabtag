@@ -1,0 +1,79 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  demo:
+    name: demo (py${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.9", "3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[mask]"
+
+      - name: entry point
+        run: grabtag --help
+
+      - name: plan + build on the demo image
+        run: |
+          mkdir -p build
+          python examples/make_demo.py build/demo.png
+          grabtag plan --ref build/demo.png --spec examples/demo_spec.json --out build/reg
+          grabtag build --dir build/reg
+
+      - name: assert the exports
+        run: |
+          python - <<'PY'
+          import json, pathlib, sys
+
+          reg = pathlib.Path("build/reg")
+          for name in ("cm.png", "montage.png", "regions.json", "tags.json"):
+              assert (reg / name).exists(), name
+
+          lay = json.loads((reg / "layout.json").read_text(encoding="utf-8"))
+          items = lay["items"]
+          assert len(items) == 4, items
+          assert all(it.get("caption") for it in items), items
+          for it in items:
+              assert len(it["bbox"]) == 4, it
+          audit = json.loads((reg / "layout.audit.json").read_text(encoding="utf-8"))
+          assert audit, "audit file is empty"
+          print("ok:", len(items), "items,", len(audit.get("items", audit)), "audit rows")
+          PY
+
+      - name: colormap tools smoke test
+        run: |
+          grabtag colormap --depth build/demo.png --bands 3 --out build/band.png
+          test -s build/band.png
+
+      - name: chroma smoke test on a synthetic green screen
+        run: |
+          python - <<'PY'
+          from PIL import Image, ImageDraw
+          im = Image.new("RGB", (256, 256), (120, 200, 60))
+          ImageDraw.Draw(im).ellipse((80, 40, 176, 216), fill=(210, 60, 70))
+          im.save("build/green.png")
+          PY
+          grabtag chroma build/green.png --out build/keyed.png --preview build/keyed_p.png
+          python - <<'PY'
+          from PIL import Image
+          a = Image.open("build/keyed.png").convert("RGBA")
+          assert a.getpixel((2, 2))[3] == 0, "corner should be keyed out"
+          assert a.getpixel((128, 128))[3] == 255, "subject should stay opaque"
+          print("chroma ok")
+          PY

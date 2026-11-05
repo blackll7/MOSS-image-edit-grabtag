@@ -1,49 +1,80 @@
-# GrabTag · 参考图分区打标
+# GrabTag
 
-把"一张参考图丢给模型、祈祷它记住细节"换成**先把参考图切成有名字的物件、每件写一条 caption、导出 `layout.json`**——
-模型读到的是"这条描述属于这个框"，而不是"这张图里某处有一朵莲花"。
+把一张参考图**切成有语义的区域**，再把这些区域写成**可以驱动扩散模型的分区条件**。
+仓库里同时收了配套的**区域 ID 色图**工具（含绿幕抠像）。
 
-仓库里同时带上配套的**色图工具**：横带／矩形／深度切片三种画法，加一个绿幕抠像器。
+不需要任何模型权重即可跑通全流程；SAM 只在你想用自动抠形时才是可选项。
 
-不带模型权重、不带素材、不绑定框架：纯 Python + Pillow，OpenCV / SAM 为可选。
+![区域色图](docs/images/demo-cm.png)
 
-## 快速上手
+*`plan` 在示例图上产出的色图：每一种纯色就是一个区域 ID；`montage.png` 里是同批区域带序号的裁片，逐块打标即可。*
+
+---
+
+## 两个工具集
+
+| 工具 | 做什么 | 产出 |
+|---|---|---|
+| **GrabTag** | `plan` 切区 + 出裁片/色图/清单；`build` 出 `layout.json` 与覆盖体检 | `crops/` `montage.png` `cm.png` `regions.json` `tags.json` `layout.json` `layout.audit.json` |
+| **色图工具** | `colormap`（横带 / PCA / 边缘）、`depth-colormap`（深度切片）、`chroma`（绿幕抠像） | 区域 ID 图 / RGBA |
+
+## 安装
 
 ```bash
-pip install -r requirements.txt
-python examples/make_demo.py examples/demo.png
-python grabtag.py plan --ref examples/demo.png --spec examples/demo_spec.json --out build/demo
-#  看 build/demo/cm.png 与 montage.png，然后在 build/demo/regions.json 里填 caption
-python grabtag.py build --dir build/demo
+pip install -e .            # 核心（numpy + Pillow）
+pip install -e ".[mask]"    # 加 GrabCut（opencv-python-headless + scipy）
+pip install -e ".[sam]"     # 再加 SAM 自动抠形（torch + segment-anything）
 ```
 
-产物：`layout.json`（label / caption / bbox）+ `layout.audit.json`（每区覆盖体检）。
+验证安装：
 
-## 分区怎么定
+```bash
+grabtag --help
+```
 
-| 参数 | 含义 |
-|---|---|
-| `--bands N` | 按人像高度切 N 段（最快） |
-| `--band a:b --band c:d` | 自定义分数带 |
-| `--rect name=x0,y0,x1,y1` | 自由框 |
-| `--spec FILE` | JSON 清单：`name / rect / color? / tag? / caption? / seed? / priority? / object? / aliases? / requires? / no_clamp? / sam?` |
+## 三分钟上手
 
-掩码可按区细化：`--masker grabcut`（默认，需 opencv）、`--masker sam-auto`（需 torch + segment-anything + `GRABTAG_SAM_CKPT`）、`--fit bg` 限制在人物轮廓内。
+```bash
+# 1) 生成一张版权自有的示例图（不用任何外部素材）
+python examples/make_demo.py build/demo.png
 
-## 六条实测规矩
+# 2) 切区：给一份 spec，或直接用 --bands 4 自动横切
+grabtag plan --ref build/demo.png --spec examples/demo_spec.json --out build/reg
 
-1. **一区一物件**；漏写的部件模型会自己补。
-2. **颜色必须唯一**（导出侧按颜色归并，撞色 = 并成一件）。
-3. **caption 必须写落点**：`a lotus ornament` 会跑到头发上，`… printed flat on the chest` 不会。
-4. **12 区是甜点**，超过 16 区小件开始丢。
-5. **窄框不会把人裂成几个，横跨整幅会**；band 模式 `--x-inset` 取 0.08–0.12。
-6. **色图管几何，caption 管材质**；改 caption 不改轮廓，要改轮廓就重画色图。
+# 3) 看 build/reg/montage.png，把每一格的 caption 填进 regions.json
+
+# 4) 导出分区条件 + 覆盖体检
+grabtag build --dir build/reg
+```
+
+`layout.json` 里每项是 `{label, caption, bbox}`，`bbox` 是 **yxyx 像素、以画布中心为原点**（例如 `[-52,-154,133,153]`）。
+给人看的审计信息（`kept`、`loss_hi`、越界告警）单独写进 `layout.audit.json` —— 不要把它们塞进 `layout.json`，那个文件会被下游当提示词读进去。
+
+## 为什么要有 `plan`
+
+手写坐标容易把整块布当成一个区域，最后模型把一块布读成一个人。`plan` 负责的是**先把区域画出来给自己看**：
+
+- `--bands N`：等分横切（最快，适合从头到脚的衣服）
+- `--band a:b`：自己指定切点（例如避开腰线）
+- `--rect` / `--spec`：矩形或 JSON 声明式清单，支持 `priority`、`seed`、`aliases`、`object`
+- 掩码细化：`--masker grabcut`（默认）/ `sam-auto` / `sam-bp` / `sam-box` / `sam-point`
+- 覆盖体检：`kept` 低说明这个区被更大的区吃掉了，`loss_hi` 说明吃掉它的是同级或更低优先级的区
 
 ## 环境变量
 
-| 变量 | 用途 |
+| 变量 | 作用 |
 |---|---|
-| `GRABTAG_SAM_CKPT` | SAM 权重路径（`sam_vit_b_*.pth`） |
-| `GRABTAG_INPUT_DIR` | 色图同步目录，默认 `./ComfyUI/input`，不存在就跳过 |
+| `GRABTAG_SAM_CKPT` | SAM 权重路径（默认当前目录下的 `sam_vit_b_01ec64.pth`） |
+| `GRABTAG_INPUT_DIR` | 若设置，`plan` 会把 `cm.png` 同步过去（例如 ComfyUI 的 `input/`）；留空则不同步 |
 
-MIT 许可，见 `LICENSE`；第三方说明见 `NOTICE.md`。
+## 与 ComfyUI 的关系
+
+这套工具**不依赖 ComfyUI**，只负责产出文件。若你在 ComfyUI 里用 MOSS / Qwen-Image 之类的分区条件：
+
+- 色图要放在 `ComfyUI/input/` 下、以**相对文件名**传给 `--color-map`
+- 挂色图时画布像素数建议 ≤ 4096 个 16×16 块（`(w/16)*(h/16) ≤ 4096`）
+- `--layout` 这类"把 bbox 变成 prompt"的做法属于下游实现，本仓库不做
+
+## 许可
+
+MIT。示例图由脚本生成，仓库内不含任何第三方素材与模型权重。
