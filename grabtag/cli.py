@@ -6,6 +6,11 @@ from importlib import import_module
 
 USAGE = """grabtag - region tagging and region-ID colour maps for diffusion models
 
+Channel reminder: `plan --for ref` and every caption write into the TEXT channel
+(a prompt); `plan --for layout`, `colormap`, `depth-colormap` and `chroma` write into
+the PIXEL channel (a region-ID image). `build` only exports structure. Mixing the two
+up is the single most common mistake - see docs/MECHANISM.md.
+
   grabtag plan    --ref IMAGE [--bands N | --spec FILE | --rect ...] --out DIR
                   cut the reference into regions, write crops / cm.png / regions.json
   grabtag build   --dir DIR [--sort small|area|y]
