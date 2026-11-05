@@ -897,10 +897,14 @@ def cmd_build(a):
 
 
 def main():
-    ap = argparse.ArgumentParser(description="参考图切区 → 打标 → layout JSON")
+    ap = argparse.ArgumentParser(description="参考图切区 → 打标 → layout JSON"
+                     " ｜ 通道：plan --for ref = 文本（tag）；--for layout = 像素（色图）；"
+                     "build 只产出结构，不直接生效")
     sub = ap.add_subparsers(dest="cmd")
 
-    p1 = sub.add_parser("plan", help="切区并生成色图/拼图/待填 JSON")
+    p1 = sub.add_parser("plan",
+                      help="切区并生成色图/拼图/待填 JSON"
+                      " ｜ 通道：--for ref 只出裁片+tags（文本）；--for layout 出色图（像素）")
     p1.add_argument("--ref", required=True, help="参考图（角色卡/立绘）")
     p1.add_argument("--out", required=True, help="工作目录")
     p1.add_argument("--bands", type=int, default=3, help="横带数量（默认 3）")
@@ -944,7 +948,9 @@ def main():
                     help="做什么：ref=只出裁片+tags.json（参考侧）；layout=只出色图+layout（生成侧）；both=都出（默认）")
     p1.set_defaults(func=cmd_plan)
 
-    p2 = sub.add_parser("build", help="读填好的 regions.json，导出 layout.json")
+    p2 = sub.add_parser("build",
+                      help="读填好的 regions.json，导出 layout.json"
+                      " ｜ 通道：只产出结构（label/caption/bbox），本身不改变任何生成结果")
     p2.add_argument("--dir", required=True, help="plan 的工作目录")
     p2.add_argument("--layout", default="", help="输出路径（默认 <dir>/layout.json）")
     p2.add_argument("--quiet", action="store_true")
