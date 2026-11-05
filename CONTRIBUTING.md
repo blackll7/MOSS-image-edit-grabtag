@@ -26,3 +26,6 @@ grabtag chroma   build/demo.png --out build/keyed.png --preview build/keyed_p.pn
 4. **Captions describe appearance and landmark**, never identity, pose or camera.
 5. If you change behaviour that the docs promise, update `README.md`,
    `README.zh.md` and `CHANGELOG.md` in the same PR.
+6. **Say which channel your change touches.** Every new document (and every doc you
+   rewrite) must start with one line: `> **Channel**: text only / pixels only / both`.
+   If a change moves work from one channel to the other, call that out in the PR.

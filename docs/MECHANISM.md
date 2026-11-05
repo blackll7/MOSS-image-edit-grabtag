@@ -1,5 +1,7 @@
 # How GrabTag actually influences a model
 
+> **Channel**: both — words describe *what*, colour maps describe *where*.
+
 A one-page channel map. Read this before changing anything: most confusion comes
 from mixing up the two channels below.
 
