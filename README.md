@@ -95,7 +95,7 @@ flowchart LR
 
 *Every panel is from one real run.* The same `plan` call does two different jobs here: **②** turns the costume card into named regions (so you can write `ref_tag` per part), **⑤** turns a rendered image into placement regions (so the second pass knows where each `paint_prompt` belongs). Between them, **④** is what the model produces from a reference plus a depth pose with no region map at all — that gap is exactly what **⑤** closes.
 
-*Panels are cropped and the chest area is mosaicked for this document.*
+*Panels ① ② ③ are cropped and downsized; ④ and ⑤ are the run's own output, only resized.*
 
 *Every panel above is from one real run.* The costume card and the pose are the actual inputs: the pose was rendered as a depth map and used as the structural control, the card supplied the look — that produced ③. Then `plan --ref` cut 11 regions out of ③, wrote `cm.png` (④) plus one `paint_prompt` per region (`examples/ice_11.json`), and the second pass refined it into ⑤. Panels are cropped and the chest area is mosaicked for this document.
 
