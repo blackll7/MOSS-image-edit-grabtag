@@ -50,7 +50,7 @@ PALETTE = ["#7fb3ff", "#5ac878", "#aa5adc", "#e8a33d", "#e2603d", "#3fb6b5",
            "#d94f8a", "#8fa93b", "#6d5bd0", "#c99a2e"]
 HERE = os.path.dirname(os.path.abspath(__file__))
 LAYOUT_TOOL = os.path.join(HERE, "moss_layout.py")
-INPUT_DIR = os.environ.get("GRABTAG_INPUT_DIR", "")  # 出图侧要读的目录；留空 = 不同步
+INPUT_DIR = os.path.join(HERE, "ComfyUI", "input")  # ComfyUI 的 LoadImage 只认这里面的文件
 
 
 def hex2rgb(h):
@@ -195,7 +195,7 @@ def seed_object_mask(rgb, seed_xy, rect_xyxy, iters=6, clamp=None):
 
 # ---------------------------------------------------------------- SAM 掩码
 _SAM = {}
-SAM_DEFAULT_CKPT = os.environ.get("GRABTAG_SAM_CKPT", "sam_vit_b_01ec64.pth")
+SAM_DEFAULT_CKPT = r"C:\MOSS-Deploy\models_sam\checkpoints\sam_vit_b_01ec64.pth"
 
 
 COMFY_PROBE_PORT = int(os.environ.get("MOSS_COMFY_PORT", "8190"))
@@ -517,7 +517,44 @@ def cmd_plan(a):
 
     # 四种分区 → 统一成 zones: (y0f, y1f, x0f, x1f)  分数坐标；x 为 None = 用 inset
     spec_items = []
-    if a.spec:
+    ext_masks = {}
+    _mdir = getattr(a, "mask_dir", "") or ""
+    if _mdir:
+        _man_path = os.path.join(_mdir, "manifest.json")
+        if not os.path.exists(_man_path):
+            print("[plan] --mask-dir 里没有 manifest.json：%s" % _man_path)
+            return 2
+        with open(_man_path, "r", encoding="utf-8") as fh:
+            _man = json.load(fh)
+        if not _man:
+            print("[plan] manifest.json 是空的")
+            return 2
+        spec_items = []
+        _arr_cache = []
+        for _i, _m in enumerate(_man):
+            spec_items.append({
+                "name": _m.get("name") or ("r%d" % (_i + 1)),
+                "rect": _m["rect"],
+                "color": _m.get("color") or PALETTE[_i % len(PALETTE)],
+                "ref_tag": _m.get("ref_tag", ""),
+                "paint_prompt": _m.get("paint_prompt", ""),
+            })
+            _mp = os.path.join(_mdir, _m["file"])
+            if not os.path.exists(_mp):
+                print("[plan] 缺少掩码文件：%s" % _mp)
+                return 2
+            _arr = np.asarray(Image.open(_mp).convert("L").resize((W, H), Image.BILINEAR)) > 127
+            _arr_cache.append(_arr)
+            ext_masks[_m.get("name") or ("r%d" % (_i + 1))] = _arr
+        # 大件先画、小件后画（后画赢）——否则小配饰会被大布料整块盖掉
+        _order = sorted(range(len(_man)), key=lambda k: -int(_arr_cache[k].sum()))
+        _man = [_man[k] for k in _order]
+        spec_items = [spec_items[k] for k in _order]
+        ext_masks = {spec_items[j]["name"]: _arr_cache[_order[j]] for j in range(len(_order))}
+        zones = [(_m["rect"][1], _m["rect"][3], _m["rect"][0], _m["rect"][2]) for _m in _man]
+        split = "mask-dir"
+        print("[plan] --mask-dir: %d 张外部掩码（%s）" % (len(ext_masks), _mdir))
+    elif a.spec:
         with open(a.spec, "r", encoding="utf-8") as fh:
             spec_items = json.load(fh)
         zones, split = [], "spec"
@@ -642,7 +679,7 @@ def cmd_plan(a):
             m &= mask
         rect_mask[g["rid"]] = m
 
-    seed_mask = {}
+    seed_mask = dict(ext_masks)
     pending = [g for g in geoms if g["it"].get("seed") and rgb_cnv is not None]
 
     masker = getattr(a, "masker", "grabcut")
@@ -792,15 +829,12 @@ def cmd_plan(a):
     # ComfyUI 的 LoadImage 只接受 input/ 下的相对文件名
     cm_input = ""
     tag = os.path.basename(os.path.abspath(a.out.rstrip("\\/"))) or "reg"
-    # 只有显式给了 GRABTAG_INPUT_DIR（或该目录本来就存在）才同步，且不主动建目录：
-    # 独立使用时不该在仓库里长出一个 ComfyUI/input。
-    if a.mode != "ref" and INPUT_DIR and os.path.isdir(INPUT_DIR):
-        try:
-            cm_input = "regcap_%s.png" % tag
-            cm.save(os.path.join(INPUT_DIR, cm_input))
-        except OSError as e:
-            cm_input = ""
-            print("[plan] 警告：色图没能同步到 %s（%s），出图时需自己拷过去" % (INPUT_DIR, e))
+    try:
+        os.makedirs(INPUT_DIR, exist_ok=True)
+        cm_input = "regcap_%s.png" % tag
+        cm.save(os.path.join(INPUT_DIR, cm_input))
+    except OSError as e:
+        print("[plan] 警告：色图没能同步进 ComfyUI/input（%s），出图时需自己拷过去" % e)
 
     # ---- 拼图：网格排布，每格左上角序号 + 区名，便于逐格打标 ----
     try:
@@ -917,28 +951,12 @@ def cmd_plan(a):
     else:
         print("[plan] 色图      : %s" % cm_path)
         if cm_input:
-            print("[plan] 已同步到   : %s（--color-map 用这个名字）" % os.path.join(INPUT_DIR, cm_input))
+            print("[plan] 已同步到   : ComfyUI/input/%s（--color-map 用这个名字）" % cm_input)
     print("[plan] 待填 JSON : %s" % os.path.join(a.out, "regions.json"))
     return 0
 
 
 # ---------------------------------------------------------------- build
-
-
-def _run_layout(argv):
-    """同包内调用 layout 模块（独立仓库里没有并排的 moss_layout.py）。"""
-    try:
-        from . import layout as _layout
-    except ImportError:                                   # 允许直接 python region_caption.py
-        import layout as _layout
-    old = sys.argv
-    sys.argv = [old[0]] + list(argv)
-    try:
-        res = _layout.main()
-        return 0 if res is None else int(res)
-    finally:
-        sys.argv = old
-
 
 def cmd_build(a):
     meta_path = os.path.join(a.dir, "regions.json")
@@ -956,7 +974,7 @@ def cmd_build(a):
               "要出 layout 请用 --for layout 或 --for both 重跑 plan；"
               "只要参考侧 tags 就直接用 tags.json，不必 build。")
         return 2
-    cmd = ["--colormap", cm, "--out", out, "--pretty"]
+    cmd = [sys.executable, LAYOUT_TOOL, "--colormap", cm, "--out", out, "--pretty"]
     if meta.get("summary"):
         cmd += ["--summary", meta["summary"]]
     for r in meta["regions"]:
@@ -966,7 +984,7 @@ def cmd_build(a):
     if getattr(a, "sort", "area") and a.sort != "area":
         cmd += ["--sort", a.sort]
 
-    rc = _run_layout(cmd)
+    rc = subprocess.call(cmd)
     if rc == 0:
         with open(out, "r", encoding="utf-8") as fh:
             lay = json.load(fh)
@@ -1050,6 +1068,8 @@ def main():
     p1.add_argument("--split", choices=["auto", "even"], default="auto",
                     help="auto=按体形切（腰/裙摆为界，需 --fit）；even=等分")
     p1.add_argument("--summary", default="", help="整图 summary（全局一句话）")
+    p1.add_argument("--mask-dir", default="",
+                    help="外部掩码目录（moss_autoregion.py 的产物，含 manifest.json）")
     p1.add_argument("--masker", choices=["grabcut", "sam-auto", "sam-bp", "sam-box", "sam-point"],
                     default="grabcut",
                     help="抠形算法：grabcut(默认) / sam-auto(SAM 逐级兜底) / sam-bp / sam-box / sam-point")

@@ -101,7 +101,7 @@ def colour_regions(arr):
     uniq, counts = np.unique(flat, axis=0, return_counts=True)
     out = {}
     for rgb, cnt in zip(uniq, counts):
-        if cnt < 0.002 * H * W:          # 太小
+        if cnt < 0.0005 * H * W:         # 太小（0.05%，够留下 1 px 级配饰）
             continue
         if max(rgb) < 16 or min(rgb) > 240:   # 近黑/近白当背景
             continue

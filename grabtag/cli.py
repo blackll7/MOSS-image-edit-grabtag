@@ -11,6 +11,7 @@ Channel reminder: `plan --for ref` and every caption write into the TEXT channel
 the PIXEL channel (a region-ID image). `build` only exports structure. Mixing the two
 up is the single most common mistake - see docs/MECHANISM.md.
 
+  grabtag autoregion --ref card.png --out masks/   # text -> boxes -> SAM2 masks (new default front-end)
   grabtag plan    --ref IMAGE [--bands N | --spec FILE | --rect ...] --out DIR
                   cut the reference into regions, write crops / cm.png / regions.json
   grabtag build   --dir DIR [--sort small|area|y]
@@ -28,6 +29,7 @@ Every subcommand forwards the remaining flags to its own ``--help``.
 """
 
 _ROUTES = {
+    "autoregion": "autoregion",
     "layout": "layout",
     "colormap": "colormap",
     "chroma": "chroma",
