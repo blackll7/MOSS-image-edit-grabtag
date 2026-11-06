@@ -25,6 +25,63 @@ No model weights, no artwork, no framework lock-in: Python + Pillow, with OpenCV
 
 ---
 
+## Three ways to use it
+
+Same tool, three shapes of input. What changes is **which channel carries the geometry**.
+
+### 1. Reference + pose — text and depth carry everything
+
+```mermaid
+flowchart LR
+  R[reference image] --> P1["plan --for ref<br/>crops + ref_tag"]
+  P1 --> T["paint_prompt<br/>(one line per part)"]
+  D[pose / depth map] --> G
+  T --> G["generate<br/>reference + depth control"]
+  G --> O[target image]
+```
+
+The depth map fixes the silhouette; the prompts fix what each band is. No colour map involved.
+
+### 2. Colour map — pixels carry the geometry
+
+```mermaid
+flowchart LR
+  R[reference image] --> S["spec / --bands / --rect"]
+  S --> CM["cm.png<br/>one flat colour per region"]
+  CM --> G["generate<br/>--color-map"]
+  K["colour-key text<br/>'the blue area is ...'"] --> G
+  G --> O[target image]
+```
+
+The map says **where**; the colour-key sentence says **what**. Neither works alone.
+
+### 3. Both — map for placement, one line per region for material
+
+```mermaid
+flowchart LR
+  O1[first-pass image] --> P2["plan --ref<br/>11 regions"]
+  P2 --> CM[cm.png]
+  P2 --> LJ["layout.json<br/>bbox + paint_prompt"]
+  CM --> G["second pass<br/>--layout / layout encoder"]
+  LJ --> G
+  G --> O2[target image]
+```
+
+<table>
+<tr>
+<td width="33%"><img src="docs/images/example-reference.jpg" alt="reference"></td>
+<td width="33%"><img src="docs/images/example-colormap.png" alt="region map"></td>
+<td width="34%"><img src="docs/images/example-result.jpg" alt="result"></td>
+</tr>
+<tr>
+<td><sub><b>① the first-pass image</b>, reused as the reference</sub></td>
+<td><sub><b>② <code>plan --ref</code> with <code>examples/ice_11.json</code></b><br/>11 regions, one flat colour each</sub></td>
+<td><sub><b>③ second pass</b>, map + one prompt per region</sub></td>
+</tr>
+</table>
+
+*The chain above is a real run: an 11-region spec (`examples/ice_11.json`) cut from a previous output, exported as `cm.png`, then refined region by region. Images are cropped and the chest area is mosaicked for this document.*
+
 ## Why it exists
 
 Two channels reach a region-aware image model, and mixing them up is the most common failure:

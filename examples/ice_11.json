@@ -1,0 +1,132 @@
+[
+ {
+  "name": "drape",
+  "rect": [
+   0.02,
+   0.34,
+   0.24,
+   0.97
+  ],
+  "color": "#1b2a5c",
+  "paint_prompt": "long navy blue gauze drape, hanging down the left side",
+  "ref_tag": "drape, shawl"
+ },
+ {
+  "name": "legs",
+  "rect": [
+   0.235,
+   0.495,
+   0.725,
+   0.905
+  ],
+  "color": "#cfe6f2",
+  "paint_prompt": "clear blue ice sheath with violet diamonds, wrapped around each leg down to the ankle",
+  "ref_tag": "trousers, harem pants"
+ },
+ {
+  "name": "hair",
+  "rect": [
+   0.26,
+   0.01,
+   0.62,
+   0.3
+  ],
+  "color": "#d9c07a",
+  "paint_prompt": "long gold wavy hair, falling over both shoulders",
+  "ref_tag": "hair, braids"
+ },
+ {
+  "name": "veil",
+  "rect": [
+   0.27,
+   0.15,
+   0.6,
+   0.29
+  ],
+  "color": "#e8f2f8",
+  "paint_prompt": "sheer white gauze stole, draped over both shoulders down to the floor",
+  "ref_tag": "veil, stole"
+ },
+ {
+  "name": "sleeve_r",
+  "rect": [
+   0.56,
+   0.23,
+   0.99,
+   0.44
+  ],
+  "paint_prompt": "voluminous sapphire-blue silk sleeve with gold lattice, worn on the right arm",
+  "ref_tag": "right sleeve"
+ },
+ {
+  "name": "sleeve_l",
+  "rect": [
+   0.02,
+   0.18,
+   0.32,
+   0.37
+  ],
+  "paint_prompt": "voluminous sapphire-blue silk sleeve with gold lattice, worn on the left arm",
+  "ref_tag": "left sleeve"
+ },
+ {
+  "name": "bodice",
+  "rect": [
+   0.32,
+   0.19,
+   0.56,
+   0.31
+  ],
+  "color": "#6f5fb0",
+  "paint_prompt": "blue violet gauze bandeau, soaked translucent over both breasts",
+  "ref_tag": "bodice, crop top"
+ },
+ {
+  "name": "sash",
+  "rect": [
+   0.25,
+   0.31,
+   0.59,
+   0.41
+  ],
+  "color": "#2b3f7a",
+  "paint_prompt": "wide navy blue belt set with gemstones, flat across the waist",
+  "ref_tag": "belt, sash"
+ },
+ {
+  "name": "sash_point",
+  "rect": [
+   0.34,
+   0.395,
+   0.66,
+   0.505
+  ],
+  "color": "#0a0823",
+  "paint_prompt": "navy blue gauze belt tail with gold trim, hanging over the crotch",
+  "ref_tag": "belt tail, sash tail"
+ },
+ {
+  "name": "shoes",
+  "rect": [
+   0.26,
+   0.9,
+   0.64,
+   1.0
+  ],
+  "color": "#8fc7de",
+  "paint_prompt": "pale blue clear ice shoe with broken rim, encasing each foot at the toes",
+  "ref_tag": "shoes"
+ },
+ {
+  "name": "orb",
+  "rect": [
+   0.12,
+   0.32,
+   0.32,
+   0.61
+  ],
+  "color": "#c8d4e0",
+  "paint_prompt": "silver-white crystal sphere with carved flower, hanging at the left hip",
+  "ref_tag": "orb, pomander"
+ }
+]

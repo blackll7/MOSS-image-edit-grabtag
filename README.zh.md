@@ -25,6 +25,63 @@ GrabTag 把一张参考图变成"分区可控"的生成输入：切区、打标�
 
 ---
 
+## 三种用法
+
+同一个工具，三种输入形状。变的只有一件事：**几何走哪条通道**。
+
+### ① 参考图 + 姿势图 —— 文字与深度扛几何
+
+```mermaid
+flowchart LR
+  R[参考图] --> P1["plan --for ref<br/>裁片 + ref_tag"]
+  P1 --> T["paint_prompt<br/>（每块一句）"]
+  D[姿势图 / 深度图] --> G
+  T --> G["生成<br/>参考图 + 深度控制"]
+  G --> O[目标图]
+```
+
+深度图锁轮廓，提示词说清每一段是什么；全程不涉及色图。
+
+### ② 色图 —— 像素扛几何
+
+```mermaid
+flowchart LR
+  R[参考图] --> S["spec / --bands / --rect"]
+  S --> CM["cm.png<br/>每区一种纯色"]
+  CM --> G["生成<br/>--color-map"]
+  K["色键文字<br/>「蓝色那块是……」"] --> G
+  G --> O[目标图]
+```
+
+色图回答**在哪里**，色键那句话回答**是什么**；缺一个都不成。
+
+### ③ 两者结合 —— 色图管落位，每区一句话管材质
+
+```mermaid
+flowchart LR
+  O1[第一程出图] --> P2["plan --ref<br/>11 区"]
+  P2 --> CM[cm.png]
+  P2 --> LJ["layout.json<br/>bbox + paint_prompt"]
+  CM --> G["第二程<br/>--layout / layout encoder"]
+  LJ --> G
+  G --> O2[目标图]
+```
+
+<table>
+<tr>
+<td width="33%"><img src="docs/images/example-reference.jpg" alt="参考图"></td>
+<td width="33%"><img src="docs/images/example-colormap.png" alt="分区色图"></td>
+<td width="34%"><img src="docs/images/example-result.jpg" alt="结果图"></td>
+</tr>
+<tr>
+<td><sub><b>① 第一程的产出</b>，被当作新的参考图</sub></td>
+<td><sub><b>② 用 <code>examples/ice_11.json</code> 跑 <code>plan --ref</code></b><br/>11 个区，每区一种纯色</sub></td>
+<td><sub><b>③ 第二程</b>：色图 + 每区一句指令</sub></td>
+</tr>
+</table>
+
+*上面这条链是真跑出来的：用 11 区 spec（`examples/ice_11.json`）从上一张产出里切区，导出 `cm.png`，再逐区精修。为控制篇幅，两张人像做了裁切，胸部打码。*
+
 ## 为什么需要它
 
 两条通道同时抵达一个"分区感知"的图像模型，把它们搞混是最常见的故障：
