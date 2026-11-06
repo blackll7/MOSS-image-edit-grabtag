@@ -1,5 +1,7 @@
 # GrabTag
 
+**English** · [简体中文](README.zh.md)
+
 **Cut a reference into regions, tag each one, and tell the model exactly which region each phrase belongs to.**
 
 GrabTag turns one reference image into region-controlled generation input: cut a character into parts, tag each part, and emit a region-ID colour map plus `layout.json` for MOSS-Image / ComfyUI. Pure Python, CPU-only, no model weights. Ships four CLIs: `plan`/`build`, `colormap`, `depth-colormap`, `chroma` (green-screen matting).

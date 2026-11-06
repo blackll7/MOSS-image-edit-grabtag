@@ -1,9 +1,10 @@
 # GrabTag
 
-把一张参考图**切成有语义的区域**，再把这些区域写成**可以驱动扩散模型的分区条件**。
-仓库里同时收了配套的**区域 ID 色图**工具（含绿幕抠像）。
+[English](README.md) · **简体中文**
 
-不需要任何模型权重即可跑通全流程；SAM 只在你想用自动抠形时才是可选项。
+**把一张参考图切成区域、逐块打标，让模型明确知道每句话对应哪一块。**
+
+GrabTag 把一张参考图变成"分区可控"的生成输入：切区、打标，输出区域 ID 色图与 `layout.json`，供 MOSS-Image / ComfyUI 使用。纯 Python、纯 CPU、不含模型权重。四个命令行子命令：`plan`/`build`、`colormap`、`depth-colormap`、`chroma`（绿幕抠像）。
 
 <table>
 <tr>
@@ -18,31 +19,39 @@
 
 *上图是作者为本项目提供的示例素材；右侧色图由 `plan` 配合 12 区 spec 直接产出（金羽簪、外袍、胸口莲、腰封、金扣、裙、下摆、双袖、腿、靴……）。*
 
-*`plan` 在示例图上产出的色图：每一种纯色就是一个区域 ID；`montage.png` 里是同批区域带序号的裁片，逐块打标即可。*
+大多数"参考图工作流"是把一张图丢给模型，然后祈祷它别丢细节。GrabTag 走反方向：**先把参考图切成有名字的区域，给每个区域写一条指令，再给每条指令一个框** —— 模型得到的是"这句话属于这个框"，而不是"这张图里某个地方有一朵莲花"。
+
+不需要模型权重、不含第三方美术素材、不绑定框架：Python + Pillow，OpenCV / scipy / SAM 都是可选项。
 
 ---
 
-> **字段名（2026-11-06 起）**：参考侧标签叫 `ref_tag`（旧 `tag`），生成侧区域指令叫
-> `paint_prompt`（旧 `caption`），全局一句话叫 `summary.text`（旧 `summary.caption`）。
-> 代码**读旧名、写新名**，旧工作目录可继续加载。
+## 为什么需要它
 
+两条通道同时抵达一个"分区感知"的图像模型，把它们搞混是最常见的故障：
 
-## 两个工具集
+| 通道 | 载体 | 回答什么 | 不能表达 |
+|---|---|---|---|
+| **文字** | `ref_tag`（参考侧）、`paint_prompt`（生成侧）、`summary.text` | 这块**是什么** / 这里**画什么** | 位置——文字本身没有几何 |
+| **像素** | `cm.png`：区域 ID 色图 | 每块在**哪里** | 这块是什么材质 |
+| **两者** | `layout.json` | 哪句话属于哪个框 | —— 它只把上面两者拼起来 |
 
-| 工具 | 做什么 | 产出 |
-|---|---|---|
-| **GrabTag** | `plan` 切区 + 出裁片/色图/清单；`build` 出 `layout.json` 与覆盖体检 | `crops/` `montage.png` `cm.png` `regions.json` `tags.json` `layout.json` `layout.audit.json` |
-| **色图工具** | `colormap`（横带 / PCA / 边缘）、`depth-colormap`（深度切片）、`chroma`（绿幕抠像） | 区域 ID 图 / RGBA |
+GrabTag 的职责就是把这几份文件正确地做出来；下游怎么消费是你自己的事。想先通读机制（含搞反时的六种症状）：[`docs/MECHANISM.md`](docs/MECHANISM.md)。
+
+---
 
 ## 安装
 
 ```bash
-pip install -e .            # 核心（numpy + Pillow）
-pip install -e ".[mask]"    # 加 GrabCut（opencv-python-headless + scipy）
-pip install -e ".[sam]"     # 再加 SAM 自动抠形（torch + segment-anything）
+git clone <本仓库> && cd grabtag
+
+pip install -e .            # 核心：numpy + Pillow，四个子命令都能跑
+pip install -e ".[mask]"    # + opencv-python、scipy -> --masker grabcut / --fit / --min-area
+pip install -e ".[sam]"     # + torch、segment-anything -> --masker sam-auto
 ```
 
-验证安装：
+Python 3.9+。除非用 SAM 且走 CUDA，否则不需要显卡。
+
+验证：
 
 ```bash
 grabtag --help
@@ -51,50 +60,127 @@ grabtag --help
 ## 三分钟上手
 
 ```bash
-# 1) 生成一张版权自有的示例图（不用任何外部素材）
-python examples/make_demo.py build/demo.png
+python examples/make_demo.py examples/demo.png     # 合成一张可用示例图（不用外部素材）
 
-# 2) 切区：给一份 spec，或直接用 --bands 4 自动横切
-grabtag plan --ref build/demo.png --spec examples/demo_spec.json --out build/reg
+python grabtag.py plan --ref examples/demo.png \
+       --spec examples/demo_spec.json --out build/demo   # ① 切区 + 上色 + 写清单
 
-# 3) 看 build/reg/montage.png，把每一格的 caption 填进 regions.json
+# ② 打开 build/demo/montage.png，看每一格裁片，
+#    把 ref_tag / paint_prompt 填进 build/demo/regions.json
 
-# 4) 导出分区条件 + 覆盖体检
-grabtag build --dir build/reg
+python grabtag.py build --dir build/demo           # ③ 导出分区条件
 ```
 
-`layout.json` 里每项是 `{label, paint_prompt, bbox}`，`bbox` 是 **yxyx 像素、以画布中心为原点**（例如 `[-52,-154,133,153]`）。
-给人看的审计信息（`kept`、`loss_hi`、越界告警）单独写进 `layout.audit.json` —— 不要把它们塞进 `layout.json`，那个文件会被下游当提示词读进去。
+```
+build/demo/
+├─ regions.json        你要填的那份（每区 ref_tag + paint_prompt）
+├─ tags.json           参考侧标签（给写提示词的人看）
+├─ cm.png              区域 ID 色图（像素通道）
+├─ montage.png         带序号的裁片（给眼睛 / 给视觉模型看）
+├─ layout.json         {summary.text, items[{label, paint_prompt, bbox}]}
+└─ layout.audit.json   同样内容 + 每区覆盖体检
+```
 
+## 四份产物，逐个说清
 
-> **动手前先读**：[`docs/MECHANISM.md`](docs/MECHANISM.md) —— 一页讲清
-> 「tag 走文字通道、色图走像素通道」以及两者搞反时的六种症状。
+| 文件 | 键 | 谁消费 |
+|---|---|---|
+| `regions.json` | `id, color, rect, span, crop, ref_tag, paint_prompt, priority, kept, loss_hi, masker, own_px` | 你填，然后 `build` 读 |
+| `tags.json` | `ref, size, summary, tags[{name, ref_tag, crop, color, area}]` | 文字侧：把这些短语写进提示词 |
+| `layout.json` | `summary{text}` + `items[{label, paint_prompt, bbox}]` | 像素+文字侧：分区感知的采样器 |
+| `layout.audit.json` | 同上，另加 `_region / _kept / _warn` | 只用于排查 |
 
-## 为什么要有 `plan`
+`bbox` 是 **`yxyx` 像素、以画布中心为原点**，即 `[y0, x0, y1, x1]`。如果你的模型要 `xyxy`、归一化浮点或左上角像素，在边界处转一次即可——换算逻辑在 `grabtag/core/layout.py::pixel_bbox`。
 
-手写坐标容易把整块布当成一个区域，最后模型把一块布读成一个人。`plan` 负责的是**先把区域画出来给自己看**：
+> **字段名（2026-11-06 起）**：参考侧标签是 `ref_tag`（旧 `tag`），生成侧区域指令是 `paint_prompt`（旧 `caption`），全局一句话是 `summary.text`（旧 `summary.caption`）。代码**读旧名、只写新名**，旧工作目录可以继续加载。
 
-- `--bands N`：等分横切（最快，适合从头到脚的衣服）
-- `--band a:b`：自己指定切点（例如避开腰线）
-- `--rect` / `--spec`：矩形或 JSON 声明式清单，支持 `priority`、`seed`、`aliases`、`object`
-- 掩码细化：`--masker grabcut`（默认）/ `sam-auto` / `sam-bp` / `sam-box` / `sam-point`
-- 覆盖体检：`kept` 低说明这个区被更大的区吃掉了，`loss_hi` 说明吃掉它的是同级或更低优先级的区
+---
+
+## 命令参考
+
+### `plan` —— 定义区域并上色
+
+| 参数 | 含义 |
+|---|---|
+| `--ref IMG` | 参考图（任意尺寸，按 `--size` 归一） |
+| `--bands N` | 等分横切 N 段（最快的基线） |
+| `--band a:b --band c:d …` | 自己指定分数切点，如 `--band 0.0:0.30` |
+| `--rect name=x0,y0,x1,y1 …` | 自由框 |
+| `--spec FILE` | JSON 清单：`{name, rect, color?, ref_tag?, paint_prompt?, seed?, priority?, object?, aliases?, requires?, no_clamp?, sam?}` |
+| `--for both\|ref\|layout` | `ref` 只出裁片与 tags；`layout` 只出色图；默认两者都出 |
+| `--masker grabcut\|sam-auto` | 把每个区细化到真实轮廓（要 `[mask]` / `[sam]`） |
+| `--fit bg\|depth` | 只给人物轮廓上色，保留发丝缝隙与腿间空隙 |
+| `--x-inset 0.10` | 收窄色带；**全宽带会被读成好几个人** |
+| `--max-items 20` | 物件数上限（一对袖子用 `object` 合并算一件） |
+| `--lint-strict` | `paint_prompt` 自检不达标时以退出码 2 结束 |
+
+`plan` 会打印**覆盖体检**——`kept`（这个区在最终色图里剩下多少）与 `loss_hi`（损失里有多少来自同级或更高优先级的区）——并拒绝重复颜色，因为 layout 导出是按颜色归并的。
+
+### `build` —— 导出分区条件
+
+```bash
+python grabtag.py build --dir build/demo [--sort small|area|y] [--quiet]
+```
+
+任何区还缺 `paint_prompt` 时直接失败退出；同时会按 `ref_tag` 补写 `tags.json`，因此"自动切区 → 手填 → build"这条链也有参考侧产物。`--sort small` 把小物件排在前面——它们本来就更容易被吃掉。
+
+### `colormap` / `depth-colormap` / `chroma`
+
+```bash
+# 由深度图驱动的横带分区
+python grabtag.py colormap --depth pose_depth.png --bands 4 --out cm.png
+# 只给主体上色（需要深度背景干净）
+python grabtag.py colormap --depth pose_depth.png --bands 4 --subject --out cm.png
+
+# 深度切片：seed | band | front | plateau
+python grabtag.py depth-colormap --depth pose_depth.png --mode front --out cm.png
+# 一次出多区：--region x,y,mode,tol,color（可重复）
+
+# 绿幕抠像 -> RGBA + 棋盘格预览
+python grabtag.py chroma shot.jpeg --rotate 90 --metric green --out rgba.png --preview prev.png
+```
+
+色图**不是一张画**：每种纯色都是区域 ID，提示词必须说明这个颜色意味着什么（`the #7fb3ff area is a faceted ice shell`）。上色顺序是 `(priority, −area)`，所以十个小挂件能活过一件大袍子。
+
+---
 
 ## 环境变量
 
-| 变量 | 作用 |
-|---|---|
-| `GRABTAG_SAM_CKPT` | SAM 权重路径（默认当前目录下的 `sam_vit_b_01ec64.pth`） |
-| `GRABTAG_INPUT_DIR` | 若设置，`plan` 会把 `cm.png` 同步过去（例如 ComfyUI 的 `input/`）；留空则不同步 |
+| 变量 | 被谁读 | 含义 |
+|---|---|---|
+| `GRABTAG_SAM_CKPT` | `--masker sam-*` | `sam_vit_b_*.pth` 的路径（默认当前目录的 `sam_vit_b_01ec64.pth`） |
+| `GRABTAG_INPUT_DIR` | `plan` | 下游 loader 期望的目录；默认 `./ComfyUI/input`，目录不存在就跳过同步 |
 
-## 与 ComfyUI 的关系
+## 在 ComfyUI / MOSS-Image 里用
 
-这套工具**不依赖 ComfyUI**，只负责产出文件。若你在 ComfyUI 里用 MOSS / Qwen-Image 之类的分区条件：
+* 把 `cm.png` 放到 loader 看得见的地方——图像 loader 通常只接受它自己 `input/` 里的文件名，所以拷进去、传裸文件名。
+* 色图别太大：16×16 patch 的 VAE 意味着 `(w/16)·(h/16) ≤ 4096`，也就是 ≤ 1024×1024。
+* `layout.json` 是给分区感知采样器（MOSS-Image 的 layout encoder，或你自己的节点）用的，**它不是图片**——把它塞进提示词字段，模型只会读到一段 JSON 文本。
 
-- 色图要放在 `ComfyUI/input/` 下、以**相对文件名**传给 `--color-map`
-- 挂色图时画布像素数建议 ≤ 4096 个 16×16 块（`(w/16)*(h/16) ≤ 4096`）
-- `--layout` 这类"把 bbox 变成 prompt"的做法属于下游实现，本仓库不做
+## 实战里的六条（都是踩出来的）
+
+1. **一个区 = 一个物件。** 没给某个部件单独开区，模型就会自己编一个。
+2. **颜色必须唯一。** 两个区 RGB 相同会被并成一项。
+3. **`paint_prompt` 必须写落点。** `a lotus ornament` 可能跑到头发上；`a lotus ornament printed flat on the chest, between the collarbones` 不会。
+4. **全身像 ~12 区是甜点。** 超过 ~16 区，小物件开始消失。
+5. **窄框不会把人切成几个人，全宽带会。** 横带模式请把 `--x-inset` 控制在 `0.08–0.12`。
+6. **色图管几何，指令管材质。** 改文字永远改不动轮廓——要改形状就重画色图。
+
+## 开发
+
+```bash
+pip install -e ".[mask]"
+python examples/make_demo.py /tmp/demo.png
+python grabtag.py plan --ref /tmp/demo.png --spec examples/demo_spec.json --out /tmp/gt
+python grabtag.py build --dir /tmp/gt
+```
+
+CI 在 Python 3.9 / 3.11 / 3.12 上就跑这几步 —— 见 `.github/workflows/ci.yml`。提交前请读 [`CONTRIBUTING.md`](CONTRIBUTING.md)；改动记录见 [`CHANGELOG.md`](CHANGELOG.md)。
 
 ## 许可
 
-MIT。示例图由脚本生成，仓库内不含任何第三方素材与模型权重。
+MIT —— 见 [`LICENSE`](LICENSE)。第三方说明见 [`NOTICE.md`](NOTICE.md)。
+
+---
+
+*仓库里的示例图由 `examples/make_demo.py` 生成，或由作者提供用于文档说明；不含任何第三方美术素材与模型权重。英文版见 [`README.md`](README.md)。*
