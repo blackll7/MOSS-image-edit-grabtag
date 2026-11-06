@@ -5,7 +5,18 @@
 
 不需要任何模型权重即可跑通全流程；SAM 只在你想用自动抠形时才是可选项。
 
-![区域色图](docs/images/demo-cm.png)
+<table>
+<tr>
+<td width="50%"><img src="docs/images/kawaku-reference.png" alt="参考图"></td>
+<td width="50%"><img src="docs/images/kawaku-colormap.png" alt="同一张图的分区色图"></td>
+</tr>
+<tr>
+<td><sub><b>① 你手里有的</b>：一张插画，所有细节都是隐含的，提示词只能含糊地指过去</sub></td>
+<td><sub><b>② <code>plan</code> 给你的</b>：同一张图被画成分区色图，每种纯色是一个区，每个区各自拿到一条独立指令和一个框</sub></td>
+</tr>
+</table>
+
+*上图是作者为本项目提供的示例素材；右侧色图由 `plan` 配合 12 区 spec 直接产出（金羽簪、外袍、胸口莲、腰封、金扣、裙、下摆、双袖、腿、靴……）。*
 
 *`plan` 在示例图上产出的色图：每一种纯色就是一个区域 ID；`montage.png` 里是同批区域带序号的裁片，逐块打标即可。*
 

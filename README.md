@@ -4,7 +4,18 @@
 
 GrabTag turns one reference image into region-controlled generation input: cut a character into parts, tag each part, and emit a region-ID colour map plus `layout.json` for MOSS-Image / ComfyUI. Pure Python, CPU-only, no model weights. Ships four CLIs: `plan`/`build`, `colormap`, `depth-colormap`, `chroma` (green-screen matting).
 
-![A colour map produced by plan: every flat colour is one region ID](docs/images/demo-cm.png)
+<table>
+<tr>
+<td width="50%"><img src="docs/images/kawaku-reference.png" alt="A reference illustration"></td>
+<td width="50%"><img src="docs/images/kawaku-colormap.png" alt="The same figure as a region-ID colour map"></td>
+</tr>
+<tr>
+<td><sub><b>1 &middot; what you have</b> &mdash; one illustration; every detail is implicit, and a prompt can only point at it vaguely</sub></td>
+<td><sub><b>2 &middot; what <code>plan</code> gives you</b> &mdash; the same figure painted as a region-ID map: each flat colour is one region, and each region gets its own instruction with its own box</sub></td>
+</tr>
+</table>
+
+*The artwork above is a sample supplied by the author for documentation; the colour map on the right is the direct output of `plan` with a 12-region spec (gold hairpin, robe, chest lotus, sash, buckle, skirt, hem, sleeves, legs, boots …).*
 
 Most reference-image workflows hand the model one picture and hope it keeps the details. GrabTag takes the opposite route: it **cuts the reference into named regions, writes one instruction per region, and gives each instruction a box** — so the model is told *this phrase belongs to that box*, not *somewhere in this picture there is a lotus*.
 

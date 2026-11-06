@@ -10,3 +10,6 @@
   bundled — point ``GRABTAG_SAM_CKPT`` at your own checkpoint.
 * Nothing in this repository ships model weights or third-party artwork. The
   demo image is drawn from scratch by ``examples/make_demo.py``.
+* ``docs/images/kawaku-reference.png`` is a sample illustration supplied by the
+  author for documentation; ``docs/images/kawaku-colormap.png`` is produced from
+  it by ``grabtag plan``. Neither is required to run the tools.
