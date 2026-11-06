@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "grabtag"
-version = "0.1.1"
+version = "0.1.2"
 description = "Region-level control for reference-image generation: cut, tag, colour map, layout.json"
 readme = "README.md"
 requires-python = ">=3.9"
