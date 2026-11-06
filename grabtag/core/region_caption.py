@@ -526,6 +526,9 @@ def cmd_plan(a):
             return 2
         with open(_man_path, "r", encoding="utf-8") as fh:
             _man = json.load(fh)
+        # 兼容两种形态：纯列表（旧）与 {"summary": …, "items": [...]}（2026-11-06 起）
+        if isinstance(_man, dict):
+            _man = _man.get("items") or []
         if not _man:
             print("[plan] manifest.json 是空的")
             return 2

@@ -77,6 +77,18 @@ def load_prompts(a):
     return out
 
 
+DEFAULT_SUMMARY = ("a young woman standing full body, hand-drawn anime illustration, "
+                   "clean thin lineart, soft cel shading, plain off-white background")
+
+
+def _disambiguate(ref_tag, text):
+    """发簪/头饰容易被模型画成花 —— 明确写「只是金属簪」。"""
+    low = (ref_tag or "").lower()
+    if any(k in low for k in ("hairpin", "pin", "headdress", "crown", "hat")) and "not a flower" not in text:
+        return text.rstrip(". ") + ", a slim metal hairpin only, not a flower ornament"
+    return text
+
+
 def _where_by_name(name, mask):
     """先按名字猜部件，再退回质心分带（质心对长袍/长发太粗）。"""
     n = (name or "").lower()
@@ -148,6 +160,8 @@ def main():
     ap.add_argument("--text-thresh", type=float, default=0.25)
     ap.add_argument("--min-area", type=float, default=0.0005, help="掩码占画布比例低于此值丢弃")
     ap.add_argument("--iou-merge", type=float, default=0.80, help="框 IoU 高于此值视为重复")
+    ap.add_argument("--summary", default=DEFAULT_SUMMARY,
+                    help="全局风格句，写进 manifest 并建议作为出图主提示词")
     ap.add_argument("--device", default="auto", choices=["auto", "cuda", "cpu"])
     a = ap.parse_args()
 
@@ -308,6 +322,7 @@ def main():
         _pp = (d["paint_prompt"] or "").strip()
         if not _pp:
             _pp = "%s, %s" % (d["ref_tag"], _where_by_name(d["ref_tag"], mk))
+        _pp = _disambiguate(d["ref_tag"], _pp)
         man.append({"name": d["name"], "file": fn, "color": col,
                     "rect": [round(x0 / W0, 4), round(y0 / H0, 4), round(x1 / W0, 4), round(y1 / H0, 4)],
                     "ref_tag": d["ref_tag"], "paint_prompt": _pp,
@@ -324,7 +339,8 @@ def main():
         print("[auto] 没产出任何掩码")
         return 2
     Image.alpha_composite(overlay, layer).convert("RGB").save(os.path.join(a.out, "overlay.png"))
-    json.dump(man, open(os.path.join(a.out, "manifest.json"), "w", encoding="utf-8"),
+    json.dump({"summary": a.summary, "items": man},
+              open(os.path.join(a.out, "manifest.json"), "w", encoding="utf-8"),
               ensure_ascii=False, indent=2)
     json.dump(rep, open(os.path.join(a.out, "report.json"), "w", encoding="utf-8"),
               ensure_ascii=False, indent=2)
