@@ -70,26 +70,32 @@ flowchart LR
 <table>
 <tr>
 <td width="33%"><img src="docs/images/example-input-reference.jpg" alt="参考图"></td>
-<td width="33%"><img src="docs/images/example-input-depth.png" alt="深度图"></td>
-<td width="34%"><img src="docs/images/example-pass1.jpg" alt="第一程"></td>
+<td width="33%"><img src="docs/images/example-reference-colormap.png" alt="参考图的分区色图"></td>
+<td width="34%"><img src="docs/images/example-input-depth.png" alt="深度图"></td>
 </tr>
 <tr>
 <td><sub><b>① 你手里有的</b>：一张服装卡</sub></td>
-<td><sub><b>② 一个姿势</b>：转成深度图</sub></td>
-<td><sub><b>③ 第一程</b>：只用参考图 + 深度，还没上色图</sub></td>
+<td><sub><b>② 同一张卡，被切成区</b><br/><code>plan --ref</code> 把每个部件涂成一块纯色</sub></td>
+<td><sub><b>③ 一个姿势</b>：转成深度图，当结构控制</sub></td>
 </tr>
 </table>
 
 <table>
 <tr>
-<td width="50%"><img src="docs/images/example-colormap.png" alt="分区色图"></td>
-<td width="50%"><img src="docs/images/example-result.jpg" alt="第二程"></td>
+<td width="33%"><img src="docs/images/example-pass1.jpg" alt="第一程"></td>
+<td width="33%"><img src="docs/images/example-colormap.png" alt="第一程的分区色图"></td>
+<td width="34%"><img src="docs/images/example-result.jpg" alt="第二程"></td>
 </tr>
 <tr>
-<td><sub><b>④ 在第一程的产出上跑 <code>plan --ref</code></b><br/>11 个区，每区一种纯色（<code>examples/ice_11.json</code>）</sub></td>
-<td><sub><b>⑤ 第二程</b>：色图管落位，每区一句指令管材质</sub></td>
+<td><sub><b>④ 第一程</b>：① + ③，还没上色图</sub></td>
+<td><sub><b>⑤ 把第一程的产出切成 11 区</b><br/><code>examples/ice_11.json</code></sub></td>
+<td><sub><b>⑥ 第二程</b>：色图管落位，每区一句指令管材质</sub></td>
 </tr>
 </table>
+
+*上面每一格都来自同一次真实运行。* 同一个 `plan` 在这里干了两件不同的事：**②** 把服装卡变成有名字的区（好让你逐块写 `ref_tag`），**⑤** 把已渲染的图变成落位区（好让第二程知道每句 `paint_prompt` 属于哪里）。中间那张 **④** 是"只给参考图 + 深度姿势、完全不上色图"的结果 —— ⑤ 补的就是这段差。
+
+*人像做了裁切，胸部打码。*
 
 *上面每一格都来自同一次真实运行。* 服装卡和姿势就是真实输入：姿势转成深度图当结构控制，服装卡负责外观，两者合成 ③；随后 `plan --ref` 从 ③ 里切出 11 个区，写出 `cm.png`（④）和每区一句 `paint_prompt`（`examples/ice_11.json`），第二程据此精修出 ⑤。为控制篇幅，人像做了裁切，胸部打码。
 

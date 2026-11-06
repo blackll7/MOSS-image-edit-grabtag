@@ -69,27 +69,33 @@ flowchart LR
 
 <table>
 <tr>
-<td width="33%"><img src="docs/images/example-input-reference.jpg" alt="reference"></td>
-<td width="33%"><img src="docs/images/example-input-depth.png" alt="depth pose"></td>
-<td width="34%"><img src="docs/images/example-pass1.jpg" alt="first pass"></td>
+<td width="33%"><img src="docs/images/example-input-reference.jpg" alt="reference card"></td>
+<td width="33%"><img src="docs/images/example-reference-colormap.png" alt="region map of the card"></td>
+<td width="34%"><img src="docs/images/example-input-depth.png" alt="depth pose"></td>
 </tr>
 <tr>
 <td><sub><b>① what you have</b> — a costume card</sub></td>
-<td><sub><b>② a pose</b> — turned into a depth map</sub></td>
-<td><sub><b>③ first pass</b> — reference + depth only, no region map</sub></td>
+<td><sub><b>② the same card as regions</b><br/><code>plan --ref</code> paints every part a flat colour</sub></td>
+<td><sub><b>③ a pose</b> — rendered to a depth map, used as structural control</sub></td>
 </tr>
 </table>
 
 <table>
 <tr>
-<td width="50%"><img src="docs/images/example-colormap.png" alt="region map"></td>
-<td width="50%"><img src="docs/images/example-result.jpg" alt="second pass"></td>
+<td width="33%"><img src="docs/images/example-pass1.jpg" alt="first pass"></td>
+<td width="33%"><img src="docs/images/example-colormap.png" alt="region map of the first pass"></td>
+<td width="34%"><img src="docs/images/example-result.jpg" alt="second pass"></td>
 </tr>
 <tr>
-<td><sub><b>④ <code>plan --ref</code> on the first pass</b><br/>11 regions, one flat colour each (<code>examples/ice_11.json</code>)</sub></td>
-<td><sub><b>⑤ second pass</b> — colour map for placement, one prompt per region for material</sub></td>
+<td><sub><b>④ first pass</b> — ① + ③, no region map yet</sub></td>
+<td><sub><b>⑤ the first pass, cut into 11 regions</b><br/><code>examples/ice_11.json</code></sub></td>
+<td><sub><b>⑥ second pass</b> — colour map for placement, one prompt per region for material</sub></td>
 </tr>
 </table>
+
+*Every panel is from one real run.* The same `plan` call does two different jobs here: **②** turns the costume card into named regions (so you can write `ref_tag` per part), **⑤** turns a rendered image into placement regions (so the second pass knows where each `paint_prompt` belongs). Between them, **④** is what the model produces from a reference plus a depth pose with no region map at all — that gap is exactly what **⑤** closes.
+
+*Panels are cropped and the chest area is mosaicked for this document.*
 
 *Every panel above is from one real run.* The costume card and the pose are the actual inputs: the pose was rendered as a depth map and used as the structural control, the card supplied the look — that produced ③. Then `plan --ref` cut 11 regions out of ③, wrote `cm.png` (④) plus one `paint_prompt` per region (`examples/ice_11.json`), and the second pass refined it into ⑤. Panels are cropped and the chest area is mosaicked for this document.
 
