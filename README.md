@@ -69,18 +69,29 @@ flowchart LR
 
 <table>
 <tr>
-<td width="33%"><img src="docs/images/example-reference.jpg" alt="reference"></td>
-<td width="33%"><img src="docs/images/example-colormap.png" alt="region map"></td>
-<td width="34%"><img src="docs/images/example-result.jpg" alt="result"></td>
+<td width="33%"><img src="docs/images/example-input-reference.jpg" alt="reference"></td>
+<td width="33%"><img src="docs/images/example-input-depth.png" alt="depth pose"></td>
+<td width="34%"><img src="docs/images/example-pass1.jpg" alt="first pass"></td>
 </tr>
 <tr>
-<td><sub><b>① the first-pass image</b>, reused as the reference</sub></td>
-<td><sub><b>② <code>plan --ref</code> with <code>examples/ice_11.json</code></b><br/>11 regions, one flat colour each</sub></td>
-<td><sub><b>③ second pass</b>, map + one prompt per region</sub></td>
+<td><sub><b>① what you have</b> — a costume card</sub></td>
+<td><sub><b>② a pose</b> — turned into a depth map</sub></td>
+<td><sub><b>③ first pass</b> — reference + depth only, no region map</sub></td>
 </tr>
 </table>
 
-*The chain above is a real run: an 11-region spec (`examples/ice_11.json`) cut from a previous output, exported as `cm.png`, then refined region by region. Images are cropped and the chest area is mosaicked for this document.*
+<table>
+<tr>
+<td width="50%"><img src="docs/images/example-colormap.png" alt="region map"></td>
+<td width="50%"><img src="docs/images/example-result.jpg" alt="second pass"></td>
+</tr>
+<tr>
+<td><sub><b>④ <code>plan --ref</code> on the first pass</b><br/>11 regions, one flat colour each (<code>examples/ice_11.json</code>)</sub></td>
+<td><sub><b>⑤ second pass</b> — colour map for placement, one prompt per region for material</sub></td>
+</tr>
+</table>
+
+*Every panel above is from one real run.* The costume card and the pose are the actual inputs: the pose was rendered as a depth map and used as the structural control, the card supplied the look — that produced ③. Then `plan --ref` cut 11 regions out of ③, wrote `cm.png` (④) plus one `paint_prompt` per region (`examples/ice_11.json`), and the second pass refined it into ⑤. Panels are cropped and the chest area is mosaicked for this document.
 
 ## Why it exists
 

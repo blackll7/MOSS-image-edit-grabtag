@@ -69,18 +69,29 @@ flowchart LR
 
 <table>
 <tr>
-<td width="33%"><img src="docs/images/example-reference.jpg" alt="参考图"></td>
-<td width="33%"><img src="docs/images/example-colormap.png" alt="分区色图"></td>
-<td width="34%"><img src="docs/images/example-result.jpg" alt="结果图"></td>
+<td width="33%"><img src="docs/images/example-input-reference.jpg" alt="参考图"></td>
+<td width="33%"><img src="docs/images/example-input-depth.png" alt="深度图"></td>
+<td width="34%"><img src="docs/images/example-pass1.jpg" alt="第一程"></td>
 </tr>
 <tr>
-<td><sub><b>① 第一程的产出</b>，被当作新的参考图</sub></td>
-<td><sub><b>② 用 <code>examples/ice_11.json</code> 跑 <code>plan --ref</code></b><br/>11 个区，每区一种纯色</sub></td>
-<td><sub><b>③ 第二程</b>：色图 + 每区一句指令</sub></td>
+<td><sub><b>① 你手里有的</b>：一张服装卡</sub></td>
+<td><sub><b>② 一个姿势</b>：转成深度图</sub></td>
+<td><sub><b>③ 第一程</b>：只用参考图 + 深度，还没上色图</sub></td>
 </tr>
 </table>
 
-*上面这条链是真跑出来的：用 11 区 spec（`examples/ice_11.json`）从上一张产出里切区，导出 `cm.png`，再逐区精修。为控制篇幅，两张人像做了裁切，胸部打码。*
+<table>
+<tr>
+<td width="50%"><img src="docs/images/example-colormap.png" alt="分区色图"></td>
+<td width="50%"><img src="docs/images/example-result.jpg" alt="第二程"></td>
+</tr>
+<tr>
+<td><sub><b>④ 在第一程的产出上跑 <code>plan --ref</code></b><br/>11 个区，每区一种纯色（<code>examples/ice_11.json</code>）</sub></td>
+<td><sub><b>⑤ 第二程</b>：色图管落位，每区一句指令管材质</sub></td>
+</tr>
+</table>
+
+*上面每一格都来自同一次真实运行。* 服装卡和姿势就是真实输入：姿势转成深度图当结构控制，服装卡负责外观，两者合成 ③；随后 `plan --ref` 从 ③ 里切出 11 个区，写出 `cm.png`（④）和每区一句 `paint_prompt`（`examples/ice_11.json`），第二程据此精修出 ⑤。为控制篇幅，人像做了裁切，胸部打码。
 
 ## 为什么需要它
 
