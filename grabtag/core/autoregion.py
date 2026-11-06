@@ -81,11 +81,57 @@ DEFAULT_SUMMARY = ("a young woman standing full body, hand-drawn anime illustrat
                    "clean thin lineart, soft cel shading, plain off-white background")
 
 
+
+_STOP = {"the", "a", "an", "of", "her", "his", "with", "and", "on", "in", "at", "patterned", "style"}
+
+
+def _tokens(name):
+    s = "".join(ch.lower() if ch.isalnum() else " " for ch in (name or ""))
+    return {w for w in s.split() if w and w not in _STOP}
+
+
+def _same_class(a, b):
+    """同名词（token 互为子集）视为同一类。"""
+    ta, tb = _tokens(a), _tokens(b)
+    if not ta or not tb:
+        return False
+    return ta <= tb or tb <= ta
+
+
+def _iou(b1, b2):
+    x0, y0 = max(b1[0], b2[0]), max(b1[1], b2[1])
+    x1, y1 = min(b1[2], b2[2]), min(b1[3], b2[3])
+    if x1 <= x0 or y1 <= y0:
+        return 0.0
+    inter = (x1 - x0) * (y1 - y0)
+    a1 = (b1[2] - b1[0]) * (b1[3] - b1[1])
+    a2 = (b2[2] - b2[0]) * (b2[3] - b2[1])
+    return inter / max(1e-6, a1 + a2 - inter)
+
+
+def _drop_dup(items, iou_thr=0.50):
+    """同类 + 重叠 -> 只留分数高的那个。items 里每项需有 ref_tag / score / box。"""
+    out = []
+    for it in sorted(items, key=lambda d: -d.get("score", 0)):
+        clash = None
+        for kept in out:
+            if _same_class(it["ref_tag"], kept["ref_tag"]) and _iou(it["box"], kept["box"]) >= iou_thr:
+                clash = kept
+                break
+        if clash is None:
+            out.append(it)
+        # else: 丢掉
+    return out
+
 def _disambiguate(ref_tag, text):
     """发簪/头饰容易被模型画成花 —— 明确写「只是金属簪」。"""
     low = (ref_tag or "").lower()
     if any(k in low for k in ("hairpin", "pin", "headdress", "crown", "hat")) and "not a flower" not in text:
-        return text.rstrip(". ") + ", a slim metal hairpin only, not a flower ornament"
+        return text.rstrip(". ") + ", just a golden feather-fan hairpin of plain metal"
+
+    if any(k in (ref_tag or "").lower() for k in
+           ("lotus", "flower", "blossom", "ornament", "brooch", "emblem")):
+        text = text.rstrip(" .") + ", fixed on the bodice, never on her head"
     return text
 
 
@@ -159,6 +205,8 @@ def main():
     ap.add_argument("--box-thresh", type=float, default=0.30)
     ap.add_argument("--text-thresh", type=float, default=0.25)
     ap.add_argument("--min-area", type=float, default=0.0005, help="掩码占画布比例低于此值丢弃")
+    ap.add_argument("--keep-duplicates", action="store_true",
+                    help="保留同名词的重复检测（默认并掉，只留分数高的）")
     ap.add_argument("--iou-merge", type=float, default=0.80, help="框 IoU 高于此值视为重复")
     ap.add_argument("--summary", default=DEFAULT_SUMMARY,
                     help="全局风格句，写进 manifest 并建议作为出图主提示词")
@@ -263,8 +311,18 @@ def main():
     dets.sort(key=lambda d: -d["score"])
     kept = []
     for d in dets:
-        if any(iou(d["box"], k["box"]) > a.iou_merge for k in kept):
-            print("[auto] 去重：%s 与已选框重叠" % d["name"])
+        why = ""
+        for k in kept:
+            if iou(d["box"], k["box"]) > a.iou_merge:
+                why = "重叠"
+                break
+            if (not a.keep_duplicates) and _same_class(
+                    d.get("ref_tag") or d["name"], k.get("ref_tag") or k["name"]) \
+                    and _iou(d["box"], k["box"]) >= 0.50:
+                why = "同类重复"
+                break
+        if why:
+            print("[auto] 去重：%s 与已选框%s" % (d["name"], why))
             continue
         kept.append(d)
 
