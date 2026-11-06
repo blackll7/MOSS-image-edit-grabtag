@@ -4,11 +4,12 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "grabtag"
-version = "0.1.0"
-description = "Region-level tagging and region-ID colour maps for reference-image conditioned diffusion"
+version = "0.1.1"
+description = "Region-level control for reference-image generation: cut, tag, colour map, layout.json"
 readme = "README.md"
 requires-python = ">=3.9"
 license = { text = "MIT" }
+keywords = ["comfyui", "moss-image", "reference-image", "segmentation", "grabcut", "sam", "chroma-key", "layout"]
 dependencies = [
     "numpy>=1.24",
     "Pillow>=9.0",
@@ -17,6 +18,13 @@ dependencies = [
 [project.optional-dependencies]
 mask = ["opencv-python>=4.8", "scipy>=1.10"]
 sam = ["torch>=2.0", "segment-anything"]
+
+[project.urls]
+Homepage = "https://github.com/blackll7/MOSS-image-edit-grabtag"
+Repository = "https://github.com/blackll7/MOSS-image-edit-grabtag"
+Issues = "https://github.com/blackll7/MOSS-image-edit-grabtag/issues"
+Changelog = "https://github.com/blackll7/MOSS-image-edit-grabtag/blob/main/CHANGELOG.md"
+Mechanism = "https://github.com/blackll7/MOSS-image-edit-grabtag/blob/main/docs/MECHANISM.md"
 
 [project.scripts]
 grabtag = "grabtag.cli:main"
