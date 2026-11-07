@@ -33,6 +33,8 @@ GrabTag 把一张参考图变成"分区可控"的生成输入：切区、打标�
 
 *单段生成、没有二次修补：**参考图**（按输出尺寸喂入，纹样才留得住）→ **GrabTag 分区**（11 个部件，各自带 `ref_tag`）→ **姿势深度**（只定骨架）→ **输出**（1024×1808，8 GB 笔记本 GPU 上 92.6 秒）。*
 
+完整流程：[`docs/case-v2`](docs/case-v2/index.md) · 分步 SOP：[`docs/sop-v2.md`](docs/sop-v2.md) · 通道差异：[`docs/moss-image-edit-integration.md`](docs/moss-image-edit-integration.md) · 显存防线：[`docs/moss-ref-oom-guards.md`](docs/moss-ref-oom-guards.md)
+
 完整可复现的例子，参考图、分区 tag 图、姿势深度图、提示词、实际命令全带：**[docs/case-v2/index.md](docs/case-v2/index.md)** · 机制说明 **[docs/moss-image-edit-integration.md](docs/moss-image-edit-integration.md)** · 显存三道防线 **[docs/moss-ref-oom-guards.md](docs/moss-ref-oom-guards.md)**。
 
 **一个 tag 有两种用法，都被支持：**
