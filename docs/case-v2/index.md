@@ -4,6 +4,30 @@
 > 机制与参数的完整说明见 [`../moss-image-edit-integration.md`](../moss-image-edit-integration.md)；
 > 服务端三道 OOM 防线见 [`../moss-ref-oom-guards.md`](../moss-ref-oom-guards.md)。
 
+[![Case V2 流程](pipeline.png)](pipeline.png)
+
+```mermaid
+flowchart LR
+  R["参考图 reference.png<br/>1538×2724 · alpha→白底 · NEAREST 短边 1024<br/>→ 1024×1814"]
+  P["姿势深度 pose.png<br/>960×1280 · BICUBIC<br/>→ 同尺寸"]
+  G["GrabTag<br/>plan --for ref<br/>11 部件 + ref_tag"]
+  T["tag 图<br/>regions-montage.png<br/>regions-colormap.png"]
+  M["MOSS-Image-Edit<br/>参考走 VAE latent<br/>MOSS_REF_POOL=2 · MOSS_REF_ALIGN=1<br/>cs=0.75 · 24 步 · DyPE off"]
+  O["输出 result.png<br/>1024×1808 · 92.6 s"]
+
+  R --> G --> T
+  R --> M
+  P --> M
+  T -.->|"tag 决定这块是什么"| M
+  M --> O
+```
+
+三步，缺一不可：
+
+1. **参考图按输出尺寸喂进去**（短边 1024，`NEAREST`）——尺寸不一致，纹样在编码阶段就被抹平；
+2. **GrabTag 把参考切成 11 个部件并打 `ref_tag`**——它决定"这块是什么"，也是后续换材质时的形状契约；
+3. **姿势深度只定骨架**，`--control-strength 0.75` 让布料仍能鼓起来（1.0 会压成贴身衣）。
+
 | 项 | 值 |
 |---|---|
 | 输出 | `result.png`（1024×1808） |
