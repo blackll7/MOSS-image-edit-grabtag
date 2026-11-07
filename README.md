@@ -33,7 +33,7 @@ No model weights, no artwork, no framework lock-in: Python + Pillow, with OpenCV
 
 *One pass, no second-stage touch-up: **reference** (fed at the output's size, so patterns survive) → **GrabTag regions** (11 parts, each with its own `ref_tag`) → **pose depth** (silhouette only) → **output** (1024×1808, 92.6 s on an 8 GB laptop GPU).*
 
-Full walkthrough: [`docs/case-v2`](docs/case-v2/index.md) · step-by-step SOP: [`docs/sop-v2.md`](docs/sop-v2.md) · channel differences: [`docs/moss-image-edit-integration.md`](docs/moss-image-edit-integration.md) · OOM guards: [`docs/moss-ref-oom-guards.md`](docs/moss-ref-oom-guards.md)
+Full walkthrough: [`docs/case-v2`](docs/case-v2/index.md) · step-by-step SOP: [`docs/sop-v2.md`](docs/sop-v2.md) · channel differences: [`docs/moss-image-edit-integration.md`](docs/moss-image-edit-integration.md) · OOM guards: [`docs/moss-ref-oom-guards.md`](docs/moss-ref-oom-guards.md) · helper scripts: [`tools/`](tools/README.md)
 
 A fully reproducible walkthrough with every asset (reference, region/tag maps, pose depth, prompt, exact command): **[docs/case-v2/index.md](docs/case-v2/index.md)** · mechanism in **[docs/moss-image-edit-integration.md](docs/moss-image-edit-integration.md)** · OOM guards in **[docs/moss-ref-oom-guards.md](docs/moss-ref-oom-guards.md)**.
 

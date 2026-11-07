@@ -16,11 +16,13 @@
 
 ---
 
+> **路径约定**：本文命令里的 `<repo>` 指本仓库根目录。S0/S1/收尾三个脚本已随仓库发布在 `tools/`（[说明](../tools/README.md)）；`moss_run.py`（主程序）与 ComfyUI 不随包分发，需按 `MOSS_HOME` 自行部署。换机器只需设 `MOSS_HOME` / `MOSS_RUNS` 两个环境变量。
+
 ## S0 一次生成 = 一个单列文件夹
 
 ```powershell
 $py = 'C:\MOSS-Deploy\venv\Scripts\python.exe'
-$rd = (& $py C:\MOSS-Deploy\work\run_new.py --tag <标签> `
+$rd = (& $py <repo>\tools\run_new.py --tag <标签> `
         --ref <原始参考图> --depth <原始深度图> | Select-Object -Last 1)
 ```
 
@@ -42,7 +44,7 @@ D:\DSH-moss\runs\<yyyyMMdd-HHmm>-<标签>\
 ## S1 归一尺寸（三步走，全部 NEAREST，零混合）
 
 ```powershell
-& $py C:\MOSS-Deploy\work\prep_canvas.py `
+& $py <repo>\tools\prep_canvas.py `
      --ref "$rd\01-ref-src.png" --depth "$rd\02-dep-src.png" --outdir "$rd"
 # 可选：--max-mp 2.0（默认）   --depth-black-bg（仅当深度源图是实景背景，见 §5.4）
 # 产物：ref_norm.png（画布尺寸、居中补白） / depth_raw.png（原尺寸原样） / prep.json
@@ -75,12 +77,12 @@ D:\DSH-moss\runs\<yyyyMMdd-HHmm>-<标签>\
 
 ```powershell
 $gt = "$rd\gt"
-& $py C:\MOSS-Deploy\moss_region_caption.py plan `
+& $py <repo>\grabtag.py plan `
      --ref "$rd\ref_norm.png" --spec "$rd\spec.json" `
      --size <prep.json 的 canvas，如 1216x1632> --for both --max-items 20 --min-area 0.002
-& $py C:\MOSS-Deploy\moss_region_caption.py build --dir $gt --sort y
+& $py <repo>\grabtag.py build --dir $gt --sort y
 # 需要核对"哪些 tag 参与"时（S2 写完后）
-& $py C:\MOSS-Deploy\moss_region_caption.py active --dir $gt --prompt-file "$rd\prompt.txt"
+& $py <repo>\grabtag.py active --dir $gt --prompt-file "$rd\prompt.txt"
 ```
 
 | 产物 | 内容 | 用在哪 |
@@ -282,7 +284,7 @@ Copy-Item "$rd\depth_norm.png" C:\MOSS-Deploy\ComfyUI\input\<tag>_depth.png -For
 ### 3.6 收尾（必做）
 
 ```powershell
-& $py C:\MOSS-Deploy\work\run_collect.py --run-dir "$rd" --prefix <run标签> --audit
+& $py <repo>\tools\run_collect.py --run-dir "$rd" --prefix <run标签> --audit
 ```
 → 成品复制进 `out\`、指标写入 `run.json`、`audit\` 出 `metrics.json` + `selfcheck.txt` + `_audit_sheet.png`。
 手数以人眼审图表为准（mediapipe 对动漫图会漏检：本次报 0 只）。
