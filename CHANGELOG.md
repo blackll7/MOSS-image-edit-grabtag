@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.1.4 — 2026-11-08
+
+- **Case V2 added** (`docs/case-v2/`): single-pass generation with the reference at native
+  size, patterns inherited. Ships the reference, the pose depth map, the GrabTag region
+  montage + colour map, the prompt, the exact command and the result.
+- **`docs/moss-image-edit-integration.md`**: the two reference channels explained
+  (`ai-toolkit` vision tokens vs `Moss-Image-Edit` VAE latents), the two-pass pipeline,
+  the knob table and the known limits.
+- **`docs/moss-ref-oom-guards.md`**: why a 1024²+ reference OOMs on 8 GB
+  (`0.44 MiB per reference token`, the whole-layer KV cache is materialised at once) and
+  the three guards (`MOSS_REF_POOL`, `MOSS_NO_REF_PRECOMPUTE`, DyPE off by default).
+- **README**: Case V2 moved to the top; documented the **two tag modes** — obey the tag
+  literally, or keep its shape/position and re-materialise it (fire/ice → water/gauze).
+  Stated explicitly that **GrabTag injects no LoRA and does not drift toward a
+  training-set style**.
+- DyPE is **off by default** now; when enabled it extrapolates at the native resolution
+  (no `target_scale` amplification). The `--dype-target-scale` option was removed.
+
 ## 0.1.3 — 2026-11-07
 
 - **`build` was broken in every installed copy**: `cmd_build` shelled out to
