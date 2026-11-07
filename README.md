@@ -19,6 +19,8 @@ GrabTag turns one reference image into region-controlled generation input: cut a
 
 *The artwork above is a sample supplied by the author for documentation; the colour map on the right is the direct output of `plan` with a 12-region spec (gold hairpin, robe, chest lotus, sash, buckle, skirt, hem, sleeves, legs, boots …).*
 
+**No LoRA injection, no style drift.** GrabTag needs no LoRA and injects none: the look comes from the base weights plus your prompt, not from whatever a fine-tuned training set happened to prefer — so the same reference can be re-skinned without dragging a house style along.
+
 Most reference-image workflows hand the model one picture and hope it keeps the details. GrabTag takes the opposite route: it **cuts the reference into named regions, writes one instruction per region, and gives each instruction a box** — so the model is told *this phrase belongs to that box*, not *somewhere in this picture there is a lotus*.
 
 No model weights, no artwork, no framework lock-in: Python + Pillow, with OpenCV / scipy / SAM optional.
