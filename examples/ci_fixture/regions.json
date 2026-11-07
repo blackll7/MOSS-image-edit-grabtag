@@ -1,0 +1,38 @@
+{
+  "cm": "cm.png",
+  "size": [
+    256,
+    256
+  ],
+  "summary": "a young woman standing full body, hand-drawn anime illustration, clean thin lineart, soft cel shading, plain off-white background",
+  "regions": [
+    {
+      "id": "r1",
+      "object": "blouse",
+      "color": "#7fb3ff",
+      "bbox": [
+        -98,
+        -68,
+        -28,
+        68
+      ],
+      "bbox_format": "yxyx_abs_centralized",
+      "ref_tag": "a pale blue sleeveless blouse",
+      "paint_prompt": "a pale blue sleeveless blouse covering the chest"
+    },
+    {
+      "id": "r2",
+      "object": "skirt",
+      "color": "#5ac878",
+      "bbox": [
+        -8,
+        -58,
+        92,
+        58
+      ],
+      "bbox_format": "yxyx_abs_centralized",
+      "ref_tag": "a deeper blue A-line skirt",
+      "paint_prompt": "an A-line skirt in deeper blue, draping from the waist to mid-thigh"
+    }
+  ]
+}

@@ -9,3 +9,8 @@ out/
 *.cm.png
 ComfyUI/
 
+# 夹具目录里 build 时生成的产物
+/ci_fixture/tags.json
+/ci_fixture/layout*.json
+examples/ci_fixture/tags.json
+examples/ci_fixture/layout*.json

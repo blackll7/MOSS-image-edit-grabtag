@@ -87,3 +87,60 @@ jobs:
           assert a.getpixel((128, 128))[3] == 255, "subject should stay opaque"
           print("chroma ok")
           PY
+
+  # 只测"安装态"：非可编辑安装，且一律在源码树之外（$RUNNER_TEMP）执行。
+  # 2026-11-07 那次 CI 全红就是 editable 安装掩盖了「build 调用了没打包的
+  # grabtag/core/moss_layout.py」——这条 job 专门守这类"本地能跑、装完就废"的 bug。
+  installed:
+    name: installed (py3.11)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: pip install . (not editable)
+        run: |
+          python -m pip install --upgrade pip
+          pip install .
+
+      - name: every shipped module imports from site-packages
+        run: |
+          cd "$RUNNER_TEMP"
+          python - <<'PY'
+          import importlib, pkgutil
+          import grabtag, grabtag.core as core
+
+          print("grabtag from", grabtag.__file__)
+          assert "site-packages" in grabtag.__file__, "not the installed copy"
+
+          names = sorted(m.name for m in pkgutil.iter_modules(core.__path__))
+          for n in names:
+              importlib.import_module("grabtag.core." + n)
+          print("ok: imported %d core modules: %s" % (len(names), ", ".join(names)))
+          PY
+
+      - name: grabtag build works from outside the source tree
+        run: |
+          cd "$RUNNER_TEMP"
+          grabtag build --dir "$GITHUB_WORKSPACE/examples/ci_fixture" \
+                        --layout "$RUNNER_TEMP/layout.json" --quiet
+          python - <<'PY'
+          import json, pathlib
+
+          lay = json.loads(pathlib.Path("layout.json").read_text(encoding="utf-8"))
+          items = lay["items"]
+          assert len(items) == 2, items
+          assert all(it.get("paint_prompt") or it.get("caption") for it in items), items
+          print("ok: installed build produced", len(items), "items")
+          PY
+
+      - name: every subcommand answers --help
+        run: |
+          cd "$RUNNER_TEMP"
+          for c in plan build colormap depth-colormap chroma hand-colormap autoregion; do
+            grabtag "$c" --help > /dev/null || { echo "FAIL: grabtag $c --help"; exit 1; }
+          done
+          echo "ok: all subcommands respond to --help"
