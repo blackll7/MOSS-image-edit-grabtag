@@ -25,6 +25,21 @@ GrabTag 把一张参考图变成"分区可控"的生成输入：切区、打标�
 
 ---
 
+## 案例 V2 —— 单段生成、参考与输出同尺寸、纹样继承
+
+[![案例 V2](docs/case-v2/result.png)](docs/case-v2/index.md)
+
+完整可复现的例子，参考图、分区 tag 图、姿势深度图、提示词、实际命令全带：**[docs/case-v2/index.md](docs/case-v2/index.md)** · 机制说明 **[docs/moss-image-edit-integration.md](docs/moss-image-edit-integration.md)** · 显存三道防线 **[docs/moss-ref-oom-guards.md](docs/moss-ref-oom-guards.md)**。
+
+**一个 tag 有两种用法，都被支持：**
+
+1. **完全顺从 tag**：该区就画成 `ref_tag` 所说的东西。
+2. **替换材质与物体、保留形状**：该区保持 tag 定义的**轮廓、位置与阵列结构**，但把实质换成同形状的其他材质或物体。案例 V2 里参考是**冰**，提示词按水与薄纱写，同一区就长成**水与纱**，菱格阵的位置与形状原样保留。
+
+也就是说，`ref_tag` 是**关于形状与位置的契约**，不是对材质的锁死——正因如此，才可以在不重画结构的前提下"给一套服装换皮"。
+
+---
+
 ## 三种用法
 
 同一个工具，三种输入形状。变的只有一件事：**几何走哪条通道**。

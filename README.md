@@ -25,6 +25,21 @@ No model weights, no artwork, no framework lock-in: Python + Pillow, with OpenCV
 
 ---
 
+## Case V2 — one pass, reference at native size, patterns inherited
+
+[![Case V2](docs/case-v2/result.png)](docs/case-v2/index.md)
+
+A fully reproducible walkthrough with every asset (reference, region/tag maps, pose depth, prompt, exact command): **[docs/case-v2/index.md](docs/case-v2/index.md)** · mechanism in **[docs/moss-image-edit-integration.md](docs/moss-image-edit-integration.md)** · OOM guards in **[docs/moss-ref-oom-guards.md](docs/moss-ref-oom-guards.md)**.
+
+**A tag can be used in two ways — both are intended:**
+
+1. **Obey the tag literally.** The region is drawn as whatever the `ref_tag` names.
+2. **Swap the material or object, keep the shape.** The region keeps the *silhouette, placement and lattice* the tag defines, while the substance is replaced by another material or object of the same shape. In Case V2 the reference is **ice**; prompted as water / gauze, the very same region comes out as **water and sheer silk** with the diamond lattice still in place.
+
+So a `ref_tag` is a **contract about shape and position** — not a lock on material. That is what makes "re-skin a costume" possible without redrawing it.
+
+---
+
 ## Three ways to use it
 
 Same tool, three shapes of input. What changes is **which channel carries the geometry**.
