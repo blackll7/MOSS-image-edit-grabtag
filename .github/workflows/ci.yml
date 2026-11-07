@@ -1,4 +1,4 @@
-﻿name: ci
+name: ci
 
 on:
   push:
@@ -9,11 +9,21 @@ on:
 jobs:
   demo:
     name: demo (py${{ matrix.python-version }})
-    runs-on: ubuntu-latest
+    # 3.9 已经没有 ubuntu-latest（26.04）的 toolcache，钉回 22.04 继续测它，
+    # 免得"声明支持 3.9 却根本没在 CI 里跑过"。
+    runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.9", "3.11", "3.12"]
+        include:
+          - python-version: "3.9"
+            os: ubuntu-22.04
+          - python-version: "3.10"
+            os: ubuntu-latest
+          - python-version: "3.11"
+            os: ubuntu-latest
+          - python-version: "3.12"
+            os: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
