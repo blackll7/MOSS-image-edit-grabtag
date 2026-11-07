@@ -8,7 +8,7 @@
       0.2
     ],
     "ref_tag": "dark brown hair framing the face",
-    "paint_prompt": "dark brown hair framing the face, drawn with clean lineart"
+    "paint_prompt": "dark brown hair with clean lineart, falling over the shoulders"
   },
   {
     "name": "bodice",
@@ -19,7 +19,7 @@
       0.46
     ],
     "ref_tag": "pale blue sleeveless bodice",
-    "paint_prompt": "a pale blue sleeveless bodice with a soft sheen, sitting at the waist"
+    "paint_prompt": "a pale blue sleeveless bodice with a soft sheen across the chest"
   },
   {
     "name": "skirt",
@@ -30,7 +30,7 @@
       0.63
     ],
     "ref_tag": "A-line skirt in deeper blue",
-    "paint_prompt": "an A-line skirt in deeper blue that flares out to mid-thigh"
+    "paint_prompt": "an A-line skirt in deeper blue, draping from the waist to mid-thigh"
   },
   {
     "name": "boots",
@@ -41,6 +41,6 @@
       0.94
     ],
     "ref_tag": "dark boots",
-    "paint_prompt": "short dark boots on both feet"
+    "paint_prompt": "short black leather boots on both feet"
   }
 ]

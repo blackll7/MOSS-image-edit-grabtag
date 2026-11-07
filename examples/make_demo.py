@@ -1,3 +1,4 @@
+﻿import os
 """Draw a copyright-free stand-in reference so the tools can be smoke-tested.
 
     python examples/make_demo.py examples/demo.png
@@ -31,6 +32,8 @@ def main(out="examples/demo.png"):
     # boots
     d.rectangle([(W // 2 - 66, 872), (W // 2 - 8, 952)], fill=(52, 58, 72))
     d.rectangle([(W // 2 + 8, 872), (W // 2 + 66, 952)], fill=(52, 58, 72))
+
+    os.makedirs(os.path.dirname(os.path.abspath(out)), exist_ok=True)
 
     im.save(out)
     print("wrote", out, im.size)

@@ -120,7 +120,7 @@ def parse_item(txt):
     return hex2rgb(colour), label, caption
 
 
-def main():
+def main(argv=None):
     ap = argparse.ArgumentParser()
     ap.add_argument("--colormap", required=True)
     ap.add_argument("--out", default="", help="输出 layout json 路径")
@@ -136,7 +136,7 @@ def main():
     ap.add_argument("--quiet", action="store_true")
     ap.add_argument("--sort", choices=["area", "y", "small"], default="area",
                     help="items 输出顺序：area=面积降序（默认），y=从上到下")
-    args = ap.parse_args()
+    args = ap.parse_args(argv)
 
     arr = np.asarray(Image.open(args.colormap).convert("RGB"))
     H, W = arr.shape[:2]

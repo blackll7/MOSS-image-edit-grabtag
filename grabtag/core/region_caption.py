@@ -49,8 +49,14 @@ from PIL import Image, ImageDraw
 PALETTE = ["#7fb3ff", "#5ac878", "#aa5adc", "#e8a33d", "#e2603d", "#3fb6b5",
            "#d94f8a", "#8fa93b", "#6d5bd0", "#c99a2e"]
 HERE = os.path.dirname(os.path.abspath(__file__))
-LAYOUT_TOOL = os.path.join(HERE, "moss_layout.py")
-INPUT_DIR = os.path.join(HERE, "ComfyUI", "input")  # ComfyUI 的 LoadImage 只认这里面的文件
+# 发布包里导出的模块叫 layout.py（不是 moss_layout.py）；
+# 以前这里 subprocess 调一个不存在的文件，安装后 `grabtag build` 必挂。
+try:
+    from . import layout as _layout_mod
+except ImportError:  # 直接以脚本方式运行时
+    import layout as _layout_mod
+INPUT_DIR = (os.environ.get("GRABTAG_INPUT_DIR")
+             or os.path.join(os.getcwd(), "ComfyUI", "input"))  # LoadImage 只认这个目录
 
 
 def hex2rgb(h):
@@ -977,7 +983,7 @@ def cmd_build(a):
               "要出 layout 请用 --for layout 或 --for both 重跑 plan；"
               "只要参考侧 tags 就直接用 tags.json，不必 build。")
         return 2
-    cmd = [sys.executable, LAYOUT_TOOL, "--colormap", cm, "--out", out, "--pretty"]
+    cmd = ["--colormap", cm, "--out", out, "--pretty"]
     if meta.get("summary"):
         cmd += ["--summary", meta["summary"]]
     for r in meta["regions"]:
@@ -987,7 +993,11 @@ def cmd_build(a):
     if getattr(a, "sort", "area") and a.sort != "area":
         cmd += ["--sort", a.sort]
 
-    rc = subprocess.call(cmd)
+    rc = 0
+    try:
+        _layout_mod.main([str(x) for x in cmd])
+    except SystemExit as e:
+        rc = int(getattr(e, "code", 0) or 0)
     if rc == 0:
         with open(out, "r", encoding="utf-8") as fh:
             lay = json.load(fh)

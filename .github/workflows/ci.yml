@@ -1,4 +1,4 @@
-name: ci
+﻿name: ci
 
 on:
   push:
@@ -48,7 +48,7 @@ jobs:
           lay = json.loads((reg / "layout.json").read_text(encoding="utf-8"))
           items = lay["items"]
           assert len(items) == 4, items
-          assert all(it.get("caption") for it in items), items
+          assert all(it.get("paint_prompt") or it.get("caption") for it in items), items
           for it in items:
               assert len(it["bbox"]) == 4, it
           audit = json.loads((reg / "layout.audit.json").read_text(encoding="utf-8"))

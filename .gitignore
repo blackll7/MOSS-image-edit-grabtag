@@ -7,3 +7,5 @@ dist/
 # local artefacts
 out/
 *.cm.png
+ComfyUI/
+

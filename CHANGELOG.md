@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.1.3 — 2026-11-07
+
+- **`build` was broken in every installed copy**: `cmd_build` shelled out to
+  `grabtag/core/moss_layout.py`, a file that is not in the package (the module ships as
+  `layout.py`), so `grabtag build` died with
+  `can't open file '.../grabtag/core/moss_layout.py'` and exit code 2.
+  It now calls `layout.main(argv)` **in process** — no subprocess, no missing file.
+- `layout.main()` takes an explicit `argv`, so it can be driven from `build` and from tests.
+- `INPUT_DIR` no longer points inside the installed package: it is
+  `$GRABTAG_INPUT_DIR` or `./ComfyUI/input` under the current working directory.
+- `examples/demo_spec.json` captions now pass the shipped linter (they were failing
+  `缺落点` / `姿势词`), so the demo no longer prints three FAILs.
+- `examples/make_demo.py` creates the output directory itself.
+- CI: the export assertion reads the current field name (`paint_prompt`), still accepting
+  the legacy `caption`.
+
 ## 0.1.2 — 2026-11-06
 
 - **`autoregion`** — GroundingDINO-tiny → SAM2.1-tiny: text prompts in, per-part masks out
