@@ -422,3 +422,18 @@ Copy-Item "$rd\depth_norm.png" C:\MOSS-Deploy\ComfyUI\input\<tag>_depth.png -For
 4. 深度图**原样**交 `--depth-map`，不缩放不补黑。
 
 ⇒ 这样深度与画布的比例几乎一致，深度**零变形**；高度又跟着参考图走，人物不会被压扁或撑满。**比"画布 = 参考比例"更稳。**
+
+---
+
+## S6 · 弱描述让参考补位（2026-11-09 实测）
+
+**判据**：小腿菱形网格护腿，挂参考 3/3 有、不挂参考 0/3 有（seed 8002/8003/8004）。
+
+**规则**：`ref_tag` 里**只写品类 + 主色**，把细节留白，参考才会把自己的图案补进来。写全了（连装饰、收口都写），参考在该块等于没用。
+
+| 想要的效果 | 写法 |
+|---|---|
+| 参考决定这块细节 | `pale blue gradient harem trousers` |
+| 完全按自己的描述画 | `... gathered at the ankle, with navy-and-gold diamond ornaments around each cuff` |
+
+配置：`--image <ref>:raw` ＋ `--color-map` ＋ `--depth-map` ＋ `--edit-format ai-toolkit` ＋ `--control-strength 0.75` ＋ 24 步；同 seed 配对做 A/B。详见 `docs/weak-description.md`。
