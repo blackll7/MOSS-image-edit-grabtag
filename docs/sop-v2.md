@@ -437,3 +437,11 @@ Copy-Item "$rd\depth_norm.png" C:\MOSS-Deploy\ComfyUI\input\<tag>_depth.png -For
 | 完全按自己的描述画 | `... gathered at the ankle, with navy-and-gold diamond ornaments around each cuff` |
 
 配置：`--image <ref>:raw` ＋ `--color-map` ＋ `--depth-map` ＋ `--edit-format ai-toolkit` ＋ `--control-strength 0.75` ＋ 24 步；同 seed 配对做 A/B。详见 `docs/weak-description.md`。
+
+## S7 · active 的泛词闸门与自动落点
+
+`active` 判"哪些区该生效"时，`ref_tag` 里的**颜色 / 材质 / 纯装饰**词不再单独触发（`GENERIC` 表见 `docs/active-matching.md`）；**部件名词仍是定位词**，必须保留。
+
+颜色键输出已自带落点：`the <color> area, <垂直档>, <水平档>[, <size>], shows <描述>`，垂直五档 `0.20 / 0.36 / 0.50 / 0.75`（head / chest / waist / thighs / lower legs）。换参考图或构图需重标阈值。
+
+验证口径：只提颜色材质应命中 0；提到 `bodice`/`harem pants` 等具体部件名应命中对应区。
