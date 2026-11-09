@@ -943,6 +943,15 @@ def cmd_plan(a):
     }
     with open(os.path.join(a.out, "regions.json"), "w", encoding="utf-8") as fh:
         json.dump(meta, fh, ensure_ascii=False, indent=2)
+    # ---- 通道留痕（两条链用语分离）----
+    _chan = "text" if getattr(a, "mode", "both") == "ref" else "pixel"
+    _note = ("A 链 / 文本通道：产物是 crops + montage + tags.json + regions.json，"
+             "不含任何色图语义；唯一出口是 moss_main.py --card --pose --tags"
+             if _chan == "text" else
+             "B 链 / 像素通道：本目录的色图给 moss_run.py --color-map，"
+             "且提示词里必须同时写 the <color> area ... shows ... 颜色键，否则静默失效")
+    with open(os.path.join(a.out, "CHANNEL.txt"), "w", encoding="utf-8") as fh:
+        fh.write("channel: %s\n%s\n" % (_chan, _note))
     if print_lint(regions, strict=getattr(a, "lint_strict", False)):
         return 2
     if a.mode != "layout":
@@ -966,6 +975,165 @@ def cmd_plan(a):
 
 
 # ---------------------------------------------------------------- build
+
+def cmd_active(a):
+    """按主提示词是否提到某条 ref_tag，筛选参与生成的裁片。"""
+    import json as _j
+    import os as _os
+    import re as _re
+
+    d = a.dir
+    tj = _os.path.join(d, "tags.json")
+    if not _os.path.exists(tj):
+        raise SystemExit("找不到 %s —— 先跑 plan --for ref" % tj)
+    doc = _j.load(open(tj, encoding="utf-8"))
+    tags = doc.get("tags") or doc.get("items") or []
+
+    if a.prompt_file:
+        prompt = open(a.prompt_file, encoding="utf-8").read()
+    else:
+        prompt = a.prompt or ""
+    if not prompt.strip():
+        raise SystemExit("需要 --prompt 或 --prompt-file")
+
+    low = prompt.lower()
+    words = set(_re.findall(r"[a-z0-9]+", low))
+
+    STOP = {"a", "an", "the", "of", "her", "his", "with", "and", "or", "on", "in",
+            "at", "to", "for", "by", "from", "over", "under", "both", "each"}
+
+    # 泛用词：颜色 / 材质 / 常见部件。这类词几乎总会出现在提示词里，
+    # 一条短语若全由它们构成（如 "navy"、"silver trim"、"blue"），
+    # 就不能作为"引用这块"的依据 —— 必须另有区分度更高的名词。
+    GENERIC = {
+        # 颜色
+        "navy", "blue", "pale", "light", "dark", "deep", "white", "black", "grey", "gray",
+        "silver", "gold", "golden", "red", "violet", "purple", "green", "cyan", "teal",
+        "pink", "warm", "cool", "bright",
+        # 材质 / 质感
+        "silk", "satin", "gauze", "sheer", "lace", "mesh", "crystal", "glass", "pearl",
+        "bead", "beaded", "metal", "metallic", "fabric", "cloth", "trim", "ornament",
+        "ornaments", "chain", "chains", "gem", "gems", "jewel", "jewels",
+        # 纯装饰（本身没有定位能力）
+        "trim", "ornament", "ornaments", "chain", "chains", "gem", "gems", "jewel", "jewels",
+    }
+
+    def _phrase_hit(ph):
+        ph = ph.strip().lower()
+        if not ph:
+            return None
+        if ph in low:                      # 整短语直接出现
+            # 整短语命中也要过泛词闸门：否则提示词里出现 "hair"/"shoes"
+            # 这类词，就等于无条件拉入对应区。
+            _pw = [w for w in _re.findall(r"[a-z0-9]+", ph) if w not in STOP]
+            if _pw and all(w in GENERIC for w in _pw):
+                return None
+            return [ph]
+        ws = [w for w in _re.findall(r"[a-z0-9]+", ph) if w not in STOP]
+        if not ws:
+            return None
+        hit = [w for w in ws if w in words]
+        if len(hit) != len(ws):            # 短语内实词必须全部命中
+            return None
+        # 去泛词：只由颜色/材质/通用部件词构成的短语，不足以唯一定位，
+        # 否则提示词里随便出现一个 navy / silver 就会把整块区拉进来。
+        if all(w in GENERIC for w in ws):
+            return None
+        return hit
+
+    engaged, skipped = [], []
+    for it in tags:
+        rt = it.get("ref_tag") or it.get("tag") or ""
+        parts = [p for p in _re.split(r"[,/;]", rt) if p.strip()]
+        matched = []
+        for p in parts:
+            h = _phrase_hit(p)
+            if h:
+                matched.extend(h)
+        row = {"name": it.get("name"), "crop": it.get("crop"),
+               "ref_tag": rt, "color": it.get("color"),
+               "area": it.get("area"), "matched": sorted(set(matched))}
+        (engaged if matched else skipped).append(row)
+
+    engaged.sort(key=lambda r: -(r.get("area") or 0))
+    out = {"source": _os.path.abspath(tj), "ref": doc.get("ref"),
+           "engaged": engaged, "skipped": skipped}
+    dst = a.out or _os.path.join(d, "active_crops.json")
+    _j.dump(out, open(dst, "w", encoding="utf-8"), ensure_ascii=False, indent=2)
+
+    print("[active] 命中 %d / 未命中 %d -> %s" % (len(engaged), len(skipped), dst))
+    for r in engaged:
+        print("  + %-12s %-22s %s" % (r["name"], "/".join(r["matched"]), r["crop"]))
+    for r in skipped:
+        print("  - %-12s %-22s %s" % (r["name"], r["ref_tag"][:22], "（未参与）"))
+    if getattr(a, "emit", "crops") == "colour-key":
+        import json as _j2
+        rj = _os.path.join(d, "regions.json")
+        cap = {}
+        if _os.path.exists(rj):
+            doc2 = _j2.load(open(rj, encoding="utf-8"))
+            for r in (doc2.get("regions") or []):
+                cap[(r.get("color") or "").lower()] = (r.get("paint_prompt") or "").strip()
+        def _where(rect):
+            """rect = [x0,y0,x1,y1] 归一化 -> 位置短语（落点）。"""
+            try:
+                x0, y0, x1, y1 = [float(v) for v in rect[:4]]
+            except Exception:
+                return ""
+            cy = (y0 + y1) / 2.0
+            cx = (x0 + x1) / 2.0
+            if cy < 0.20:
+                v = "the head and shoulders"
+            elif cy < 0.36:
+                v = "the chest level, upper torso"
+            elif cy < 0.50:
+                v = "the waist and hip level"
+            elif cy < 0.75:
+                v = "the thighs and knees"
+            else:
+                v = "the lower legs and feet"
+            if cx < 0.40:
+                h = "on the left side"
+            elif cx > 0.60:
+                h = "on the right side"
+            else:
+                h = "in the centre"
+            w = x1 - x0
+            hh = y1 - y0
+            size = ""
+            if w * hh > 0.16:
+                size = ", a large area"
+            elif w * hh < 0.04:
+                size = ", a small area"
+            return "%s, %s%s" % (v, h, size)
+
+        rects = {}
+        if _os.path.exists(rj):
+            doc3 = _j2.load(open(rj, encoding="utf-8"))
+            for r in (doc3.get("regions") or []):
+                rects[(r.get("color") or "").lower()] = r.get("rect")
+
+        lines, miss = [], []
+        for r in engaged:
+            c = (r.get("color") or "").lower()
+            pp = cap.get(c, "")
+            if not pp:
+                miss.append(r["name"])
+                continue
+            place = _where(rects.get(c) or [])
+            if place:
+                lines.append("the %s area, %s, shows %s" % (c, place, pp))
+            else:
+                lines.append("the %s area is %s" % (c, pp))
+        key = "; ".join(lines)
+        dst2 = _os.path.join(d, "colour_keys.txt")
+        with open(dst2, "w", encoding="utf-8") as fh:
+            fh.write(key + "\n")
+        print("[active] colour-key %d 条 -> %s" % (len(lines), dst2))
+        print(key if key else "(空：没有命中任何区，生成时不写颜色键)")
+        if miss:
+            print("  ! 这些区有 ref_tag 但缺 paint_prompt，已跳过：%s" % ", ".join(miss))
+
 
 def cmd_build(a):
     meta_path = os.path.join(a.dir, "regions.json")
@@ -1106,6 +1274,15 @@ def main():
     p2.add_argument("--sort", choices=["area", "y", "small"], default="area",
                     help="items 顺序：area=按面积降序（默认）；y=按上→下")
     p2.set_defaults(func=cmd_build)
+    p3 = sub.add_parser("active",
+                        help="按主提示词是否提到 ref_tag，筛选参与生成的裁片")
+    p3.add_argument("--dir", required=True, help="含 tags.json 的目录（plan --for ref 的 out）")
+    p3.add_argument("--prompt", default="", help="主提示词文本")
+    p3.add_argument("--prompt-file", default="", help="主提示词文件（优先）")
+    p3.add_argument("--out", default="", help="输出路径，默认 <dir>/active_crops.json")
+    p3.add_argument("--emit", default="crops", choices=["crops", "colour-key"],
+                    help="crops=输出裁片清单；colour-key=输出可直接喂 --region-prompt 的颜色键行")
+    p3.set_defaults(func=cmd_active)
 
     a = ap.parse_args()
     if not getattr(a, "func", None):
